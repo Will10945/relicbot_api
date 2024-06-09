@@ -1,7 +1,7 @@
 import mysql, { ResultSetHeader } from 'mysql2/promise';
 import dotenv from 'dotenv';
-import IMemberRow from './src/models/db.member';
-import ISquadRow, { ISquadPostRow, ISquadRefinementRow, ISquadRelicRow, ISquadUserRow } from './src/models/db.squads';
+import IMemberRow from '../models/db.member';
+import ISquadRow, { ISquadPostRow, ISquadUserRow, ISquadRelicRow, ISquadRefinementRow } from '../models/db.squads';
 
 dotenv.config();
 
