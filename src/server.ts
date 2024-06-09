@@ -31,8 +31,7 @@ app.use('/api/squads', squads);
 app.use('/', home);
 
 // Configuration
-console.log('Application Name: ' + config.get('name'));
-console.log('Mail Password: ' + config.get('mail.password'));
+// console.log('Application Name: ' + config.get('name'));
 
 if (app.get('env') === 'development'){
     app.use(morgan('tiny'));
