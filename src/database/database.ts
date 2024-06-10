@@ -2,6 +2,9 @@ import mysql, { ResultSetHeader } from 'mysql2/promise';
 import dotenv from 'dotenv';
 import IMemberRow from '../models/db.member';
 import ISquadRow, { ISquadPostRow, ISquadUserRow, ISquadRelicRow, ISquadRefinementRow } from '../models/db.squads';
+import IRelicRow from '../models/db.relics';
+import IPrimeSetRow from '../models/db.primeSets';
+import IPrimePartRow from '../models/db.primeParts';
 
 dotenv.config();
 
@@ -111,5 +114,23 @@ export async function getAllSquadRefinements() {
 export async function getAllSquadPosts() {
     return await SelectQuery<ISquadPostRow>(
         `SELECT * FROM SquadPosts;`
+    );
+}
+
+export async function getAllRelics() {
+    return await SelectQuery<IRelicRow>(
+        `SELECT * FROM Relics`
+    );
+}
+
+export async function getAllPrimeSets() {
+    return await SelectQuery<IPrimeSetRow>(
+        `SELECT * FROM PrimeSets`
+    );
+}
+
+export async function getAllPrimeParts() {
+    return await SelectQuery<IPrimePartRow>(
+        `SELECT * FROM PrimeParts`
     );
 }

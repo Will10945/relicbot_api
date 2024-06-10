@@ -9,6 +9,9 @@ const startupDebugger = require('debug')('app:startup');
 import logger from './middleware/logger';
 import members from './routes/members';
 import squads from './routes/squads';
+import relics from './routes/relics';
+import primeSets from './routes/primeSets';
+import primeParts from './routes/primeParts';
 import home from './routes/home';
 
 // const pool = mysql.createPool({
@@ -28,6 +31,9 @@ app.use(express.static('public'));
 app.use(helmet());
 app.use('/api/members', members);
 app.use('/api/squads', squads);
+app.use('/api/relics', relics);
+app.use('/api/primesets', primeSets);
+app.use('/api/primeparts', primeParts);
 app.use('/', home);
 
 // Configuration

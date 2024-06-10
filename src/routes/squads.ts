@@ -89,6 +89,7 @@ function mergeSquadQueryResults(
 }
 
 router.get('/', async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
     try {
         const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getAllSquads();
         const squadsFormatted: Squad[] = mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
