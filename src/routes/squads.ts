@@ -23,7 +23,7 @@ async function updateSquads() {
     } catch (error) {
         console.error('Error updating squads global', error);
     } finally {
-        await updateSquads();
+        updateSquads();
     }
 }
 
