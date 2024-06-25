@@ -50,4 +50,4 @@ if (app.get('env') === 'development'){
 app.use(logger);
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Server running on port ${port}`));
+httpServer.listen(port, () => console.log(`Server running on port ${port}`));
