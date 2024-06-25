@@ -8,26 +8,26 @@ const router = express.Router();
 
 const squadDebugger = require('debug')('app:squadsEndpoint');
 
-var SQUADS: string = '';
+var SQUADS: Squad[] = [];
 
-async function fetchSquads() {
-    const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getAllSquads();
-    const data = await mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
-    return data;
-}
+// async function fetchSquads() {
+//     const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getAllSquads();
+//     const data = await mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
+//     return data;
+// }
 
-async function updateSquads() {
-    try {
-        const SQUADS = await fetchSquads();
-        console.log('Updated squads global successfully');
-    } catch (error) {
-        console.error('Error updating squads global', error);
-    } finally {
-        updateSquads();
-    }
-}
+// async function updateSquads() {
+//     try {
+//         const SQUADS = await fetchSquads();
+//         console.log('Updated squads global successfully');
+//     } catch (error) {
+//         console.error('Error updating squads global', error);
+//     } finally {
+//         setTimeout(updateSquads, 0);
+//     }
+// }
 
-updateSquads();
+// updateSquads();
 
 async function mergeSquadQueryResults(
     squadResults: ISquadRow[], squadUsersResults: ISquadUserRow[], squadRelicsResults: ISquadRelicRow[], 
@@ -114,10 +114,10 @@ async function mergeSquadQueryResults(
 router.get('/', async (req, res) => {
     res.header("Access-Control-Allow-Origin", "*");
     try {
-        // const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getAllSquads();
-        // const squadsFormatted: Squad[] = await mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
-        // res.json({ results: squadsFormatted });
-        res.json({ results: SQUADS });
+        const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getAllSquads();
+        const squadsFormatted: Squad[] = await mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
+        res.json({ results: squadsFormatted });
+        // res.json({ results: SQUADS });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Internal server error' })
