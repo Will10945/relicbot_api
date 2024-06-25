@@ -1,6 +1,7 @@
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'path';
 
 const startupDebugger = require('debug')('app:startup');
 
@@ -16,6 +17,7 @@ import home from './routes/home';
 const app = express();
 
 app.set('view engine', 'pug');
+app.set('views', path.join(__dirname, './views'));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
