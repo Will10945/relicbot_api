@@ -8,7 +8,7 @@ const primeSetsDebugger = require('debug')('app:primePartsEndpoint');
 router.get('/', async (req, res) => {
     try {
         const primeParts = await getAllPrimeParts();
-        res.json(primeParts);
+        res.json({ results: primeParts });
     } catch (error) {
         res.status(500).json({ error: 'Internal server error' })
     }

@@ -5,6 +5,7 @@ import ISquadRow, { ISquadPostRow, ISquadUserRow, ISquadRelicRow, ISquadRefineme
 import IRelicRow from '../models/db.relics';
 import IPrimeSetRow from '../models/db.primeSets';
 import IPrimePartRow from '../models/db.primeParts';
+import IRefinementRow from '../models/db.refinement';
 
 dotenv.config();
 
@@ -83,6 +84,26 @@ export async function getAllSquads() {
     return { squads, squadUsers, squadRelics, squadRefinements, squadPosts };
 }
 
+export async function getActiveSquads() {
+    var squads: ISquadRow[] = [];
+    var offset: number = 0;
+    const limit: number = 100000;
+    while (true){
+        const _results = await SelectQuery<ISquadRow>(
+            `SELECT * FROM Squads WHERE Active = 1 
+            LIMIT ${limit} OFFSET ${offset};`
+        );
+        squads = squads.concat(_results);
+        if (_results.length == 0) break;
+        offset += limit;
+    }
+    const squadUsers = await getAllSquadUsers();
+    const squadRelics = await getAllSquadRelics();
+    const squadRefinements = await getAllSquadRefinements();
+    const squadPosts: ISquadPostRow[] = [];
+    return { squads, squadUsers, squadRelics, squadRefinements, squadPosts };
+}
+
 export async function getSquadById(id: string) {
     const squad = await SelectQuery<ISquadRow>(`SELECT * FROM Squads WHERE SquadID = ?;`, [id]);
     const squadUsers = await SelectQuery<ISquadUserRow>(`SELECT * FROM SquadUsers WHERE SquadID = ?;`, [id]);
@@ -123,6 +144,12 @@ export async function getAllRelics() {
     );
 }
 
+export async function getRelic(id: number) {
+    return await SelectQuery<IRelicRow>(
+        `SELECT * FROM Relics WHERE ID = ?`, [id]
+    )
+}
+
 export async function getAllPrimeSets() {
     return await SelectQuery<IPrimeSetRow>(
         `SELECT * FROM PrimeSets`
@@ -132,5 +159,11 @@ export async function getAllPrimeSets() {
 export async function getAllPrimeParts() {
     return await SelectQuery<IPrimePartRow>(
         `SELECT * FROM PrimeParts`
+    );
+}
+
+export async function getAllRefinements() {
+    return await SelectQuery<IRefinementRow>(
+        `SELECT * FROM refinement`
     );
 }

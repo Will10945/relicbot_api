@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllSquads, getSquadById } from '../database/database';
+import { getActiveSquads, getAllSquads, getSquadById } from '../database/database';
 import ISquadRow, { ISquadPostRow, ISquadRefinementRow, ISquadRelicRow, ISquadUserRow, Squad } from '../models/db.squads';
 
 const router = express.Router();
@@ -93,7 +93,19 @@ router.get('/', async (req, res) => {
     try {
         const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getAllSquads();
         const squadsFormatted: Squad[] = mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
-        res.json(squadsFormatted);
+        res.json({ results: squadsFormatted });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Internal server error' })
+    }
+});
+
+router.get('/active', async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    try {
+        const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getActiveSquads();
+        const squadsFormatted: Squad[] = mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
+        res.json({ results: squadsFormatted });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Internal server error' })

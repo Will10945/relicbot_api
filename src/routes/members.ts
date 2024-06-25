@@ -6,16 +6,18 @@ import { getAllMembers, getMemberById, ModifyQuery } from '../database/database'
 const router = express.Router();
 
 router.get('/', async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
     try {
         const members = await getAllMembers();
-        res.json(members);
+        res.json({ results: members });
     } catch (error) {
         res.status(500).json({ error: 'Internal server error' })
     }
 });
 
 router.get('/:id', async (req, res) => {
-    const member = await getMemberById(parseInt(req.params.id));
+    res.header("Access-Control-Allow-Origin", "*");
+    const member = (await getMemberById(parseInt(req.params.id)))[0];
     if (!member) return res.status(404).send('The member with the given id does not exist.');
     res.send(member);
 });

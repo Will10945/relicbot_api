@@ -1,8 +1,6 @@
-// import mysql from 'mysql2';
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import config from 'config';
 
 const startupDebugger = require('debug')('app:startup');
 
@@ -12,14 +10,8 @@ import squads from './routes/squads';
 import relics from './routes/relics';
 import primeSets from './routes/primeSets';
 import primeParts from './routes/primeParts';
+import refinements from './routes/refinements';
 import home from './routes/home';
-
-// const pool = mysql.createPool({
-//     host: dbConfig.HOST,
-//     user: dbConfig.USER,
-//     password: dbConfig.PASSWORD,
-//     database: dbConfig.DB
-// });
 
 const app = express();
 
@@ -34,19 +26,16 @@ app.use('/api/squads', squads);
 app.use('/api/relics', relics);
 app.use('/api/primesets', primeSets);
 app.use('/api/primeparts', primeParts);
+app.use('/api/refinements', refinements);
 app.use('/', home);
 
 // Configuration
-// console.log('Application Name: ' + config.get('name'));
-
 if (app.get('env') === 'development'){
     app.use(morgan('tiny'));
     startupDebugger('Morgan enabled...');
 }
 
 app.use(logger);
-
-// app.use(bodyParser.json());
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Server running on port ${port}`));
