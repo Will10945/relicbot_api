@@ -8,7 +8,7 @@ const router = express.Router();
 
 const squadDebugger = require('debug')('app:squadsEndpoint');
 
-var SQUADS: Squad[] = [];
+var ACTIVE_SQUADS: Squad[] = [];
 
 async function fetchSquads() {
     const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getActiveSquads();
@@ -18,7 +18,7 @@ async function fetchSquads() {
 
 async function updateSquads() {
     try {
-        const SQUADS = await fetchSquads();
+        ACTIVE_SQUADS = await fetchSquads();
         console.info('Updated squads global successfully');
     } catch (error) {
         console.error('Error updating squads global', error);
@@ -130,7 +130,7 @@ router.get('/active', async (req, res) => {
         // const squadsFormatted: Squad[] = await mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
         // res.json({ results: squadsFormatted });
         console.info('Squads requested ...');
-        res.json({ results: SQUADS });
+        res.json({ results: ACTIVE_SQUADS });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Internal server error' })
