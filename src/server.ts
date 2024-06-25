@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
 import http from 'http';
+import cors from 'cors';
 
 const startupDebugger = require('debug')('app:startup');
 
@@ -16,16 +17,7 @@ import refinements from './routes/refinements';
 import home from './routes/home';
 import { ServerSocket } from './socket';
 
-const allowCrossDomain = function(req: any, res: any, next: any) {
-    res.header('Access-Control-Allow-Origin', "*");
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-    next();
-}
-
 const app = express();
-
-app.use(allowCrossDomain);
 
 /** Server Handling */
 const httpServer = http.createServer(app);
@@ -36,6 +28,7 @@ new ServerSocket(httpServer);
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, '../public/views'));
 
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
