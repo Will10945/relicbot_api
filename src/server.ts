@@ -17,7 +17,7 @@ import home from './routes/home';
 const app = express();
 
 app.set('view engine', 'pug');
-app.set('views', path.join(__dirname, './views'));
+app.set('views', path.join(__dirname, '../public/views'));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
