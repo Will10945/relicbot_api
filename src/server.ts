@@ -16,7 +16,16 @@ import refinements from './routes/refinements';
 import home from './routes/home';
 import { ServerSocket } from './socket';
 
+const allowCrossDomain = function(req: any, res: any, next: any) {
+    res.header('Access-Control-Allow-Origin', "*");
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    next();
+}
+
 const app = express();
+
+app.use(allowCrossDomain);
 
 /** Server Handling */
 const httpServer = http.createServer(app);

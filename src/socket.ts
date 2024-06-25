@@ -19,8 +19,6 @@ export class ServerSocket {
             cookie: false,
             cors: {
                 origin: '*',
-                allowedHeaders: ['Access-Control-Allow-Origin'],
-                credentials: true
             }
         });
 
