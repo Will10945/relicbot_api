@@ -1,14 +1,37 @@
 import express from 'express';
 import { getActiveSquads, getAllSquads, getSquadById } from '../database/database';
 import ISquadRow, { ISquadPostRow, ISquadRefinementRow, ISquadRelicRow, ISquadUserRow, Squad } from '../models/db.squads';
+import { serialize } from 'v8';
+import zlib from 'zlib';
 
 const router = express.Router();
 
 const squadDebugger = require('debug')('app:squadsEndpoint');
 
-function mergeSquadQueryResults(
+var SQUADS: string = '';
+
+async function fetchSquads() {
+    const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getAllSquads();
+    const data = await mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
+    return data;
+}
+
+async function updateSquads() {
+    try {
+        const SQUADS = await fetchSquads();
+        console.log('Updated squads global successfully');
+    } catch (error) {
+        console.error('Error updating squads global', error);
+    } finally {
+        updateSquads();
+    }
+}
+
+updateSquads();
+
+async function mergeSquadQueryResults(
     squadResults: ISquadRow[], squadUsersResults: ISquadUserRow[], squadRelicsResults: ISquadRelicRow[], 
-    squadRefinementResults: ISquadRefinementRow[], squadPostsResults: ISquadPostRow[] ): Squad[] {
+    squadRefinementResults: ISquadRefinementRow[], squadPostsResults: ISquadPostRow[] ): Promise<Squad[]> {
 
     const mergedMap: { [SquadID: string]: Squad } = {};
 
@@ -91,9 +114,10 @@ function mergeSquadQueryResults(
 router.get('/', async (req, res) => {
     res.header("Access-Control-Allow-Origin", "*");
     try {
-        const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getAllSquads();
-        const squadsFormatted: Squad[] = mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
-        res.json({ results: squadsFormatted });
+        // const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getAllSquads();
+        // const squadsFormatted: Squad[] = await mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
+        // res.json({ results: squadsFormatted });
+        res.json({ results: SQUADS });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Internal server error' })
@@ -104,7 +128,7 @@ router.get('/active', async (req, res) => {
     res.header("Access-Control-Allow-Origin", "*");
     try {
         const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getActiveSquads();
-        const squadsFormatted: Squad[] = mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
+        const squadsFormatted: Squad[] = await mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
         res.json({ results: squadsFormatted });
     } catch (error) {
         console.log(error);
@@ -114,13 +138,13 @@ router.get('/active', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
     const { squad, squadUsers, squadRelics, squadRefinements, squadPosts } = await getSquadById(req.params.id);
-    const squadsFormatted: Squad[] = mergeSquadQueryResults(squad, squadUsers, squadRelics, squadRefinements, squadPosts);
+    const squadsFormatted: Squad[] = await mergeSquadQueryResults(squad, squadUsers, squadRelics, squadRefinements, squadPosts);
     res.json(squadsFormatted);
 });
 
 router.get('/users/:memberId/:memberId2?/:memberId3?/:memberId4?', async (req, res) => {
     const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getAllSquads();
-    const squadsFormatted: Squad[] = mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
+    const squadsFormatted: Squad[] = await mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
     const memberIds = Object.values(req.params).filter(v => v);
     const userSquads = squadsFormatted.filter((s) => {
         if (memberIds.every(e => Object.keys(s.MemberIDs).includes(e))) {
@@ -132,7 +156,7 @@ router.get('/users/:memberId/:memberId2?/:memberId3?/:memberId4?', async (req, r
 
 router.get('/relics/:relicId', async (req, res) => {
     const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getAllSquads();
-    const squadsFormatted: Squad[] = mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
+    const squadsFormatted: Squad[] = await mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
     const relicIds = Object.values(req.params).filter(v => v);
     const relicSquads = squadsFormatted.filter((s) => {
         if (relicIds.every(e => Object.keys(s.RelicIDs).includes(e))) {
