@@ -2,6 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
+import http from 'http';
 
 const startupDebugger = require('debug')('app:startup');
 
@@ -13,8 +14,15 @@ import primeSets from './routes/primeSets';
 import primeParts from './routes/primeParts';
 import refinements from './routes/refinements';
 import home from './routes/home';
+import { ServerSocket } from './socket';
 
 const app = express();
+
+/** Server Handling */
+const httpServer = http.createServer(app);
+
+/** Start Socket */
+new ServerSocket(httpServer);
 
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, '../public/views'));
