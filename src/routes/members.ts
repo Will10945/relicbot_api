@@ -1,6 +1,6 @@
 import Joi from 'joi';
 import express from 'express';
-import IMemberRow from '../models/db.member';
+import IMemberRow from '../entities/db.member';
 import { getAllMembers, getMemberById, ModifyQuery } from '../database/database';
 
 const router = express.Router();

@@ -1,11 +1,11 @@
 import mysql, { ResultSetHeader } from 'mysql2/promise';
 import dotenv from 'dotenv';
-import IMemberRow from '../models/db.member';
-import ISquadRow, { ISquadPostRow, ISquadUserRow, ISquadRelicRow, ISquadRefinementRow } from '../models/db.squads';
-import IRelicRow from '../models/db.relics';
-import IPrimeSetRow from '../models/db.primeSets';
-import IPrimePartRow from '../models/db.primeParts';
-import IRefinementRow from '../models/db.refinement';
+import IMemberRow from '../entities/db.member';
+import ISquadRow, { ISquadPostRow, ISquadUserRow, ISquadRelicRow, ISquadRefinementRow } from '../entities/db.squads';
+import IRelicRow from '../entities/db.relics';
+import IPrimeSetRow from '../entities/db.primeSets';
+import IPrimePartRow from '../entities/db.primeParts';
+import IRefinementRow from '../entities/db.refinement';
 
 dotenv.config();
 

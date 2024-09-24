@@ -28,7 +28,6 @@ new ServerSocket(httpServer);
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, '../public/views'));
 
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));

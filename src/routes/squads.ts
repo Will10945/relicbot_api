@@ -1,8 +1,7 @@
 import express from 'express';
 import { getActiveSquads, getAllSquads, getSquadById } from '../database/database';
-import ISquadRow, { ISquadPostRow, ISquadRefinementRow, ISquadRelicRow, ISquadUserRow, Squad } from '../models/db.squads';
-import { serialize } from 'v8';
-import zlib from 'zlib';
+import ISquadRow, { ISquadPostRow, ISquadRefinementRow, ISquadRelicRow, ISquadUserRow, Squad } from '../entities/db.squads';
+import _ from 'underscore';
 
 const router = express.Router();
 
@@ -12,18 +11,19 @@ var ACTIVE_SQUADS: Squad[] = [];
 
 async function fetchSquads() {
     const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getActiveSquads();
-    const data = await mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
-    return data;
+    const squadsFormatted: Squad[] = await mergeSquadQueryResults(squads, squadUsers, squadRelics, squadRefinements, squadPosts);
+    return squadsFormatted;
 }
 
 async function updateSquads() {
     try {
         ACTIVE_SQUADS = await fetchSquads();
-        console.info('Updated squads global successfully');
+        console.info('Updated squads cache successfully', ACTIVE_SQUADS.map(s => s.SquadID));
     } catch (error) {
-        console.error('Error updating squads global', error);
+        console.error('Error updating squads cache', error);
     } finally {
-        setTimeout(updateSquads, 0);
+        await new Promise(r => setTimeout(r, 2000));
+        setTimeout(updateSquads, 3000);
     }
 }
 
