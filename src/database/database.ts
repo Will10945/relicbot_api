@@ -6,6 +6,7 @@ import IRelicRow from '../entities/db.relics';
 import IPrimeSetRow from '../entities/db.primeSets';
 import IPrimePartRow from '../entities/db.primeParts';
 import IRefinementRow from '../entities/db.refinement';
+import TABLES from '../entities/constants';
 
 dotenv.config();
 
@@ -33,15 +34,15 @@ export async function ModifyQuery(queryString: string, params?: (number | string
 }
 
 export async function getAllMembers() {
-    return await SelectQuery<IMemberRow>('SELECT * FROM Members');
+    return await SelectQuery<IMemberRow>(`SELECT * FROM ${TABLES.MEMBERS}`);
 }
 
 export async function getMemberById(id: number) {
-    return await SelectQuery<IMemberRow>(`SELECT * FROM Members WHERE MemberID = ?`, [id]);
+    return await SelectQuery<IMemberRow>(`SELECT * FROM ${TABLES.MEMBERS} WHERE MemberID = ?`, [id]);
 }
 
 export async function getMemberByName(name: string|number) {
-    return await SelectQuery<IMemberRow>(`SELECT * FROM Members WHERE MemberName = ?`, [name]);
+    return await SelectQuery<IMemberRow>(`SELECT * FROM ${TABLES.MEMBERS} WHERE MemberName = ?`, [name]);
 }
 
 export async function getAllSquadsWithMessages() {
@@ -50,7 +51,7 @@ export async function getAllSquadsWithMessages() {
     const limit: number = 100000;
     while (true){
         const _results = await SelectQuery<ISquadRow>(
-            `SELECT * FROM Squads 
+            `SELECT * FROM ${TABLES.SQUADS} 
             LIMIT ${limit} OFFSET ${offset};`
         );
         squads = squads.concat(_results);
@@ -70,7 +71,7 @@ export async function getAllSquads() {
     const limit: number = 100000;
     while (true){
         const _results = await SelectQuery<ISquadRow>(
-            `SELECT * FROM Squads 
+            `SELECT * FROM ${TABLES.SQUADS} 
             LIMIT ${limit} OFFSET ${offset};`
         );
         squads = squads.concat(_results);
@@ -90,7 +91,7 @@ export async function getActiveSquads() {
     const limit: number = 100000;
     while (true){
         const _results = await SelectQuery<ISquadRow>(
-            `SELECT * FROM Squads WHERE Active = 1 
+            `SELECT * FROM ${TABLES.SQUADS} WHERE Active = 1 
             LIMIT ${limit} OFFSET ${offset};`
         );
         squads = squads.concat(_results);
@@ -105,65 +106,65 @@ export async function getActiveSquads() {
 }
 
 export async function getSquadById(id: string) {
-    const squad = await SelectQuery<ISquadRow>(`SELECT * FROM Squads WHERE SquadID = ?;`, [id]);
-    const squadUsers = await SelectQuery<ISquadUserRow>(`SELECT * FROM SquadUsers WHERE SquadID = ?;`, [id]);
-    const squadRelics = await SelectQuery<ISquadRelicRow>(`SELECT * FROM SquadRelics WHERE SquadID = ?;`, [id]);
-    const squadRefinements = await SelectQuery<ISquadRefinementRow>(`SELECT * FROM SquadRefinement WHERE SquadID = ?;`, [id]);
-    const squadPosts = await SelectQuery<ISquadPostRow>(`SELECT * FROM SquadPosts WHERE SquadID = ?;`, [id]);
+    const squad = await SelectQuery<ISquadRow>(`SELECT * FROM ${TABLES.SQUADS} WHERE SquadID = ?;`, [id]);
+    const squadUsers = await SelectQuery<ISquadUserRow>(`SELECT * FROM ${TABLES.SQUADUSERS} WHERE SquadID = ?;`, [id]);
+    const squadRelics = await SelectQuery<ISquadRelicRow>(`SELECT * FROM ${TABLES.SQUADRELICS} WHERE SquadID = ?;`, [id]);
+    const squadRefinements = await SelectQuery<ISquadRefinementRow>(`SELECT * FROM ${TABLES.SQUADREFINEMENT} WHERE SquadID = ?;`, [id]);
+    const squadPosts = await SelectQuery<ISquadPostRow>(`SELECT * FROM ${TABLES.SQUADPOSTS} WHERE SquadID = ?;`, [id]);
 
     return { squad, squadUsers, squadRelics, squadRefinements, squadPosts };
 }
 
 export async function getAllSquadUsers() {
     return await SelectQuery<ISquadUserRow>(
-        `SELECT * FROM SquadUsers;`
+        `SELECT * FROM ${TABLES.SQUADUSERS};`
     );
 }
 
 export async function getAllSquadRelics() {
     return await SelectQuery<ISquadRelicRow>(
-        `SELECT * FROM SquadRelics;`
+        `SELECT * FROM ${TABLES.SQUADRELICS};`
     );
 }
 
 export async function getAllSquadRefinements() {
     return await SelectQuery<ISquadRefinementRow>(
-        `SELECT * FROM SquadRefinement;`
+        `SELECT * FROM ${TABLES.SQUADREFINEMENT};`
     );
 }
 
 export async function getAllSquadPosts() {
     return await SelectQuery<ISquadPostRow>(
-        `SELECT * FROM SquadPosts;`
+        `SELECT * FROM ${TABLES.SQUADPOSTS};`
     );
 }
 
 export async function getAllRelics() {
     return await SelectQuery<IRelicRow>(
-        `SELECT * FROM Relics`
+        `SELECT * FROM ${TABLES.RELICS}`
     );
 }
 
 export async function getRelic(id: number) {
     return await SelectQuery<IRelicRow>(
-        `SELECT * FROM Relics WHERE ID = ?`, [id]
+        `SELECT * FROM ${TABLES.RELICS} WHERE ID = ?`, [id]
     )
 }
 
 export async function getAllPrimeSets() {
     return await SelectQuery<IPrimeSetRow>(
-        `SELECT * FROM PrimeSets`
+        `SELECT * FROM ${TABLES.PRIMESETS}`
     );
 }
 
 export async function getAllPrimeParts() {
     return await SelectQuery<IPrimePartRow>(
-        `SELECT * FROM PrimeParts`
+        `SELECT * FROM ${TABLES.PRIMEPARTS}`
     );
 }
 
 export async function getAllRefinements() {
     return await SelectQuery<IRefinementRow>(
-        `SELECT * FROM refinement`
+        `SELECT * FROM ${TABLES.REFINEMENT}`
     );
 }

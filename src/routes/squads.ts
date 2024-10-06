@@ -2,6 +2,8 @@ import express from 'express';
 import { getActiveSquads, getAllSquads, getSquadById } from '../database/database';
 import ISquadRow, { ISquadPostRow, ISquadRefinementRow, ISquadRelicRow, ISquadUserRow, Squad } from '../entities/db.squads';
 import _ from 'underscore';
+import Joi from 'joi';
+import TABLES from '../entities/constants';
 
 const router = express.Router();
 
@@ -168,5 +170,66 @@ router.get('/relics/:relicId', async (req, res) => {
     res.json(relicSquads);
 })
 
+router.post('/', async (req, res) => {
+
+    const squadsValidated: Joi.ValidationResult[] = [];
+
+    req.body.forEach((sq: ISquadRow) => squadsValidated.push(validateSquad(sq)))
+
+    // console.log(squadsValidated);
+    
+    const errors: Joi.ValidationError[] = [];
+    squadsValidated.forEach(sq => {
+        if (sq.error)
+            errors.push(sq.error)
+    });
+    
+    if (errors.length) return res.status(400).send(errors.map(er => er.details[0].message));
+
+    squadsValidated.filter(sq => {
+        if (!sq.error)
+            return sq.value
+    })
+
+    // res.send(`Squads successfully added to the database: ${squads}`);
+    res.json(squadsValidated);
+
+})
+
+function validateSquad(squad: ISquadRow) {
+    const schema = Joi.object({
+        SquadID: Joi.string().required(),
+        Style: Joi.string().pattern(/^[1-4]b[1-4]$/),
+        Era: Joi.string().valid(...['Lith', 'Meso', 'Neo', 'Axi']),
+        CycleRequirement: Joi.string().pattern(/^\d+\+/),
+        Host: Joi.number(),
+        CurrentCount: Joi.number(),
+        Filled: Joi.number(),
+        UserMsg: Joi.string().max(255).min(0),
+        CreatedAt: Joi.date().timestamp(),
+        Active: Joi.number(),
+        OriginatingServer: Joi.number(),
+        Rehost: Joi.number(),
+        ClosedAt: Joi.date().timestamp(),
+        Relics: Joi.object({
+            Oncycle: Joi.array().items(Joi.string()),
+            Offcycle: Joi.array().items(Joi.string())
+        }),
+        Refinements: Joi.object({
+            Oncycle: Joi.array().items(Joi.string()),
+            Offcycle: Joi.array().items(Joi.string())
+        }),
+        Members: Joi.array().items(Joi.number())
+
+        // MemberIDs: Joi.object({
+        //     MemberID: Joi.object().pattern(/.*/, [{
+        //         ServerID: Joi.number(),
+        //         AnonymousUsers: Joi.number()
+        //     }])
+        // })
+    });
+
+    return schema.validate(squad);
+}
 
 export default router;
