@@ -10,6 +10,7 @@ var TABLES = {
     HOSTLISTREFINEMENTS: 'hostlistrefinements',
     HOSTLISTRELICS: 'hostlistrelics',
     HOSTLISTS: 'hostlists',
+    HOSTS: 'hosts',
     HOSTREPUTATION: 'hostreputation',
     LEADERBOARDS: 'leaderboards',
     LINKEDRELICS: 'linkedrelics',
@@ -32,6 +33,7 @@ var TABLES = {
     REFINEMENT: 'refinement',
     RELICDEFAULTS: 'relicdefaults',
     RELICFRIENDS: 'relicfriends',
+    RELICPAIRFRIENDS: 'relicpairfriends',
     RELICRELEASEINFO: 'relicreleaseinfo',
     RELICREPUTATION: 'relicreputation',
     RELICROLES: 'relicroles',
@@ -42,7 +44,10 @@ var TABLES = {
     SQUADREFINEMENT: 'squadrefinement',
     SQUADRELICS: 'squadrelics',
     SQUADUSERS: 'squadusers',
-    STATUS: 'status'
+    STATUS: 'status',
+    REPUTATION_BACKFILL_PROCESSED: 'reputation_backfill_processed',
+    USERS: 'users',
+    SESSIONS: 'sessions'
 };
 
 if (process.env.NODE_ENV == 'development'){
@@ -58,6 +63,7 @@ if (process.env.NODE_ENV == 'development'){
         HOSTLISTREFINEMENTS: 'hostlistrefinements',
         HOSTLISTRELICS: 'hostlistrelics',
         HOSTLISTS: 'hostlists',
+        HOSTS: 'hosts',
         HOSTREPUTATION: 'hostreputation',
         LEADERBOARDS: 'leaderboards',
         LINKEDRELICS: 'linkedrelics',
@@ -80,6 +86,7 @@ if (process.env.NODE_ENV == 'development'){
         REFINEMENT: 'refinement',
         RELICDEFAULTS: 'relicdefaults',
         RELICFRIENDS: 'relicfriends',
+        RELICPAIRFRIENDS: 'relicpairfriends',
         RELICRELEASEINFO: 'relicreleaseinfo',
         RELICREPUTATION: 'relicreputation',
         RELICROLES: 'relicroles',
@@ -90,7 +97,10 @@ if (process.env.NODE_ENV == 'development'){
         SQUADREFINEMENT: 'squadrefinement',
         SQUADRELICS: 'squadrelics',
         SQUADUSERS: 'squadusers',
-        STATUS: 'status'
+        STATUS: 'status',
+        REPUTATION_BACKFILL_PROCESSED: 'reputation_backfill_processed',
+        USERS: 'users',
+        SESSIONS: 'sessions'
     }
 }
 

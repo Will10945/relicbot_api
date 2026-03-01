@@ -15,6 +15,7 @@ export default interface ISquadRow extends RowDataPacket {
     OriginatingServer?: number;
     Rehost?: number;
     ClosedAt?: number;
+    CloseReason?: string | null;
 }
 
 export interface ISquadUserRow extends RowDataPacket {
@@ -56,6 +57,7 @@ export interface Squad{
     OriginatingServer?: number;
     Rehost?: number;
     ClosedAt?: number;
+    CloseReason?: string | null;
     MemberIDs: {
         [MemberID: number]: {
             ServerID?: number;

@@ -1,7 +1,7 @@
 import Joi from 'joi';
 import express from 'express';
 import IMemberRow from '../entities/db.member';
-import { getAllMembers, getMemberById, ModifyQuery } from '../database/database';
+import { getAllMembers, getMemberById, getMemberProfileData, getProfileOrderBy, parseFilledOnlyParam, parseDateRange, normalizeFromTo, ModifyQuery } from '../database/database';
 
 const router = express.Router();
 
@@ -12,6 +12,23 @@ router.get('/', async (req, res) => {
         res.json({ results: members });
     } catch (error) {
         res.status(500).json({ error: 'Internal server error' })
+    }
+});
+
+router.get('/:id/profile', async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid member ID' });
+        const sortBy = getProfileOrderBy((req.query.sort as string) ?? '');
+        const filledOnly = parseFilledOnlyParam(req.query.all);
+        const { from, to } = normalizeFromTo(req.query as Record<string, unknown>);
+        const dateRange = parseDateRange(from, to);
+        const data = await getMemberProfileData(id, sortBy, filledOnly, dateRange);
+        if (!data.member) return res.status(404).json({ error: 'Member not found' });
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

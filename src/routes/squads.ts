@@ -14,6 +14,9 @@ import {
     getSquadUser,
     addSquadMember,
     addSquadGuest,
+    updateReputationOnSquadClosed,
+    getSquadCountsPerDay,
+    getSquadCountsPerDayOrderBy,
 } from '../database/database';
 import ISquadRow, { ISquadPostRow, ISquadRefinementRow, ISquadRelicRow, ISquadUserRow, Squad } from '../entities/db.squads';
 import _ from 'underscore';
@@ -89,6 +92,7 @@ async function mergeSquadQueryResults(
                 OriginatingServer: res.OriginatingServer,
                 Rehost: res.Rehost,
                 ClosedAt: res.ClosedAt,
+                CloseReason: res.CloseReason,
                 MemberIDs: {},
                 RelicIDs: {},
                 RefinementIDs: {
@@ -285,6 +289,19 @@ router.get('/active', async (req, res) => {
     }
 });
 
+/** GET /api/squads/counts-per-day — count of closed squads per day (total, filled, unfilled). Includes every day in range (zeros for no data). ?sort=date|filled|total|unfilled (default: date ascending; others by value descending). */
+router.get('/counts-per-day', async (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    try {
+        const sortBy = getSquadCountsPerDayOrderBy((req.query.sort as string) ?? '');
+        const results = await getSquadCountsPerDay(sortBy);
+        res.json({ results });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 /** Join squads (1 or more). Body: { memberId, serverId?, squadIds: string[] }.
  *  Adding a guest: when the host joins again (member already in squad), only when squadIds.length === 1, we add one guest instead of inserting a duplicate row. */
 router.post('/join', async (req, res) => {
@@ -395,7 +412,9 @@ router.post('/leave', async (req, res) => {
                         squadId,
                         memberId: value.memberId,
                         anonymousUsers,
-                        closedAt: Date.now()
+                        closedAt: Math.floor(Date.now() / 1000),
+                        filled: 0,
+                        closeReason: 'host_left'
                     });
                 }
             }
@@ -405,6 +424,11 @@ router.post('/leave', async (req, res) => {
 
     try {
         await executeLeaveBulk(bulkOps);
+        for (const op of bulkOps.hostCloses) {
+            updateReputationOnSquadClosed(op.squadId).catch((err) =>
+                squadDebugger('Reputation update failed for squad %s: %s', op.squadId, err)
+            );
+        }
     } catch (err) {
         errors.push({ index: -1, message: err instanceof Error ? err.message : String(err) });
         successSquadIds.length = 0;
@@ -527,7 +551,7 @@ router.post('/create', async (req, res) => {
 
         const createItems = value as SquadCreateRequest[];
         const serverDefault = 0;
-        const now = Date.now();
+        const now = Math.floor(Date.now() / 1000);
 
         const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getActiveSquads();
         const activeSquadsList = await mergeSquadQueryResults(
