@@ -78,7 +78,7 @@ router.post('/register', async (req, res) => {
   res.cookie(SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? 'lax' : 'strict',
+    sameSite: isProd ? 'none' : 'strict',
     maxAge: SESSION_DURATION_MS,
     path: '/',
   });
@@ -118,7 +118,7 @@ router.post('/login', async (req, res) => {
   res.cookie(SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? 'lax' : 'strict',
+    sameSite: isProd ? 'none' : 'strict',
     maxAge: SESSION_DURATION_MS,
     path: '/',
   });
