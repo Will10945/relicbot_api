@@ -1,0 +1,552 @@
+{
+  "endpoints": [
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "HTML (pug view)",
+      "description": "",
+      "sourceFile": "src/routes/home.ts",
+      "path": "/"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [
+        {
+          "name": "sort",
+          "type": "string"
+        },
+        {
+          "name": "all",
+          "type": "string"
+        },
+        {
+          "name": "from",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "to",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "filled",
+          "type": "string"
+        }
+      ],
+      "bodyParams": [],
+      "responseShape": "{ results }",
+      "description": "",
+      "sourceFile": "src/routes/hosts.ts",
+      "path": "/api/hosts"
+    },
+    {
+      "method": "GET",
+      "pathParams": [
+        "id"
+      ],
+      "queryParams": [
+        {
+          "name": "all",
+          "type": "string"
+        },
+        {
+          "name": "host",
+          "type": "string"
+        },
+        {
+          "name": "from",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "to",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "filled",
+          "type": "string"
+        }
+      ],
+      "bodyParams": [],
+      "responseShape": "data (see handler for shape)",
+      "description": "",
+      "sourceFile": "src/routes/hosts.ts",
+      "path": "/api/hosts/:id"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ results }",
+      "description": "",
+      "sourceFile": "src/routes/members.ts",
+      "path": "/api/members"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "(see handler)",
+      "description": "",
+      "sourceFile": "src/routes/members.ts",
+      "path": "/api/members"
+    },
+    {
+      "method": "DELETE",
+      "pathParams": [
+        "id"
+      ],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "(see handler)",
+      "description": "",
+      "sourceFile": "src/routes/members.ts",
+      "path": "/api/members/:id"
+    },
+    {
+      "method": "GET",
+      "pathParams": [
+        "id"
+      ],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "(see handler)",
+      "description": "",
+      "sourceFile": "src/routes/members.ts",
+      "path": "/api/members/:id"
+    },
+    {
+      "method": "PUT",
+      "pathParams": [
+        "id"
+      ],
+      "queryParams": [],
+      "bodyParams": [
+        {
+          "name": "MemberID",
+          "type": "number"
+        },
+        {
+          "name": "MemberName",
+          "type": "string"
+        },
+        {
+          "name": "DiscordID",
+          "type": "number"
+        },
+        {
+          "name": "AllowMerging",
+          "type": "number"
+        },
+        {
+          "name": "HostLimit",
+          "type": "number"
+        },
+        {
+          "name": "CycleDefault",
+          "type": "number"
+        },
+        {
+          "name": "Muted",
+          "type": "number"
+        },
+        {
+          "name": "Badge",
+          "type": "number"
+        },
+        {
+          "name": "SquadChatTime",
+          "type": "number"
+        }
+      ],
+      "responseShape": "(see handler)",
+      "description": "",
+      "sourceFile": "src/routes/members.ts",
+      "path": "/api/members/:id"
+    },
+    {
+      "method": "GET",
+      "pathParams": [
+        "id"
+      ],
+      "queryParams": [
+        {
+          "name": "sort",
+          "type": "string"
+        },
+        {
+          "name": "all",
+          "type": "string"
+        },
+        {
+          "name": "member",
+          "type": "string"
+        },
+        {
+          "name": "from",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "to",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "filled",
+          "type": "string"
+        }
+      ],
+      "bodyParams": [],
+      "responseShape": "data (see handler for shape)",
+      "description": "",
+      "sourceFile": "src/routes/members.ts",
+      "path": "/api/members/:id/profile"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ results }",
+      "description": "",
+      "sourceFile": "src/routes/primeParts.ts",
+      "path": "/api/primeparts"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ results }",
+      "description": "",
+      "sourceFile": "src/routes/primeSets.ts",
+      "path": "/api/primesets"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ results }",
+      "description": "",
+      "sourceFile": "src/routes/refinements.ts",
+      "path": "/api/refinements"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ results }",
+      "description": "",
+      "sourceFile": "src/routes/relics.ts",
+      "path": "/api/relics"
+    },
+    {
+      "method": "GET",
+      "pathParams": [
+        "id"
+      ],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "relic (see handler for shape)",
+      "description": "",
+      "sourceFile": "src/routes/relics.ts",
+      "path": "/api/relics/:id"
+    },
+    {
+      "method": "GET",
+      "pathParams": [
+        "id"
+      ],
+      "queryParams": [
+        {
+          "name": "sort",
+          "type": "string"
+        },
+        {
+          "name": "all",
+          "type": "string"
+        },
+        {
+          "name": "relic",
+          "type": "string"
+        },
+        {
+          "name": "from",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "to",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "filled",
+          "type": "string"
+        }
+      ],
+      "bodyParams": [],
+      "responseShape": "data (see handler for shape)",
+      "description": "",
+      "sourceFile": "src/routes/relics.ts",
+      "path": "/api/relics/:id/profile"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "memberIds",
+          "type": "string"
+        },
+        {
+          "name": "relicIds",
+          "type": "string"
+        },
+        {
+          "name": "refinementIds",
+          "type": "string"
+        },
+        {
+          "name": "era",
+          "type": "string"
+        },
+        {
+          "name": "style",
+          "type": "string"
+        },
+        {
+          "name": "hostMemberId",
+          "type": "string"
+        },
+        {
+          "name": "originatingServerId",
+          "type": "string"
+        },
+        {
+          "name": "filled",
+          "type": "string"
+        }
+      ],
+      "bodyParams": [],
+      "responseShape": "{ results }",
+      "description": "",
+      "sourceFile": "src/routes/squads.ts",
+      "path": "/api/squads"
+    },
+    {
+      "method": "GET",
+      "pathParams": [
+        "id"
+      ],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "",
+      "sourceFile": "src/routes/squads.ts",
+      "path": "/api/squads/:id"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "(see handler)",
+      "description": "",
+      "sourceFile": "src/routes/squads.ts",
+      "path": "/api/squads/active"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [
+        {
+          "name": "sort",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        }
+      ],
+      "bodyParams": [],
+      "responseShape": "(see handler)",
+      "description": "GET /api/squads/counts-per-day — count of closed squads per day (total, filled, unfilled). Includes every day in range (zeros for no data). ?sort=date|filled|total|unfilled (default: date ascending; others by value descending).",
+      "sourceFile": "src/routes/squads.ts",
+      "path": "/api/squads/counts-per-day"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [
+        {
+          "name": "hostMemberId",
+          "type": "number"
+        },
+        {
+          "name": "relics",
+          "type": "array"
+        },
+        {
+          "name": "relicId",
+          "type": "number"
+        },
+        {
+          "name": "offcycle",
+          "type": "boolean"
+        }
+      ],
+      "responseShape": "{ errors }",
+      "description": "Create squads. Body: list of squad creation objects (min 1). Equivalency: relics + style + refinements + cycle requirement. Duplicates within the same request are skipped (only one create/join per signature). Against existing: if user is host of matching squad → skip; if user not in matching squad → join it.",
+      "sourceFile": "src/routes/squads.ts",
+      "path": "/api/squads/create"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [
+        {
+          "name": "memberId",
+          "type": "number"
+        },
+        {
+          "name": "serverId",
+          "type": "number"
+        },
+        {
+          "name": "squadIds",
+          "type": "array"
+        }
+      ],
+      "responseShape": "{ errors }",
+      "description": "Join squads (1 or more). Body: { memberId, serverId?, squadIds: string[] }.  Adding a guest: when the host joins again (member already in squad), only when squadIds.length === 1, we add one guest instead of inserting a duplicate row.",
+      "sourceFile": "src/routes/squads.ts",
+      "path": "/api/squads/join"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [
+        {
+          "name": "memberId",
+          "type": "number"
+        },
+        {
+          "name": "squadIds",
+          "type": "array"
+        }
+      ],
+      "responseShape": "{ errors }",
+      "description": "Leave squads. Body: { memberId, squadIds?: string[] }.  If squadIds is omitted or empty, the member is removed from every active squad they are in (active squads created in the last 24 hours only).  Removing a guest: when leaving one squad only and the member has guests (AnonymousUsers > 0), we remove one guest.  Bulk: when leaving multiple squads, the member (and all their guests) are removed from each squad.",
+      "sourceFile": "src/routes/squads.ts",
+      "path": "/api/squads/leave"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [
+        {
+          "name": "username",
+          "type": "string"
+        },
+        {
+          "name": "password",
+          "type": "string"
+        }
+      ],
+      "responseShape": "{ error }",
+      "description": "POST /auth/login — body: { username, password }. Returns { user: { id, username, member? }, expiresAt }. Sets session cookie.",
+      "sourceFile": "src/routes/auth.ts",
+      "path": "/auth/login"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ ok }",
+      "description": "POST /auth/logout — invalidates current session. Requires session (cookie or Bearer).",
+      "sourceFile": "src/routes/auth.ts",
+      "path": "/auth/logout"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [
+        {
+          "name": "memberId",
+          "type": "number"
+        },
+        {
+          "name": "discordId",
+          "type": "number"
+        },
+        {
+          "name": "memberName",
+          "type": "string"
+        }
+      ],
+      "responseShape": "{ error }",
+      "description": "GET /auth/me — returns current user (and linked member if any) if session valid, else 401.",
+      "sourceFile": "src/routes/auth.ts",
+      "path": "/auth/me"
+    },
+    {
+      "method": "DELETE",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "DELETE /auth/me/link — remove the member link for the current user.",
+      "sourceFile": "src/routes/auth.ts",
+      "path": "/auth/me/link"
+    },
+    {
+      "method": "PUT",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "",
+      "sourceFile": "src/routes/auth.ts",
+      "path": "/auth/me/link"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "",
+      "sourceFile": "src/routes/auth.ts",
+      "path": "/auth/register"
+    }
+  ]
+}

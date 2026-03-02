@@ -1,0 +1,19 @@
+{
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "5.161.72.79",
+            "port": 3306,
+            "driver": "MySQL",
+            "name": "relicbot",
+            "username": "relicbot",
+            "database": "relicbot",
+            "password": "eUcyYAEnNZ7tpXssYwVzUNiUGQTvhpks"
+        }
+    ]
+}
