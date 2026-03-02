@@ -4,7 +4,6 @@ import { getHostProfileData, getAllHostsProfileData, getHostProfileOrderBy, pars
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-    res.header("Access-Control-Allow-Origin", "*");
     try {
         const sortParam = (req.query.sort as string) ?? '';
         const sortBy = getHostProfileOrderBy(sortParam);
@@ -20,7 +19,6 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/:id', async (req, res) => {
-    res.header("Access-Control-Allow-Origin", "*");
     try {
         const id = parseInt(req.params.id, 10);
         if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid host ID' });

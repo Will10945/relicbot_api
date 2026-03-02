@@ -6,7 +6,6 @@ const router = express.Router();
 const refinementsDebugger = require('debug')('app:refinementsEndpoint');
 
 router.get('/', async (req, res) => {
-    res.header("Access-Control-Allow-Origin", "*");
     try {
         const refinements = await getAllRefinements();
         res.json({ results: refinements });

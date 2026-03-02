@@ -168,7 +168,6 @@ async function batchGetSquadDtos(squadIds: string[]): Promise<Squad[]> {
 }
 
 router.get('/', async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
     try {
         const {
             status = 'all',
@@ -272,7 +271,6 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/active', async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
     try {
         const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getActiveSquads();
         const results = await mergeSquadQueryResults(
@@ -291,7 +289,6 @@ router.get('/active', async (req, res) => {
 
 /** GET /api/squads/counts-per-day — count of closed squads per day (total, filled, unfilled). Includes every day in range (zeros for no data). ?sort=date|filled|total|unfilled (default: date ascending; others by value descending). */
 router.get('/counts-per-day', async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
     try {
         const sortBy = getSquadCountsPerDayOrderBy((req.query.sort as string) ?? '');
         const results = await getSquadCountsPerDay(sortBy);
@@ -305,7 +302,6 @@ router.get('/counts-per-day', async (req, res) => {
 /** Join squads (1 or more). Body: { memberId, serverId?, squadIds: string[] }.
  *  Adding a guest: when the host joins again (member already in squad), only when squadIds.length === 1, we add one guest instead of inserting a duplicate row. */
 router.post('/join', async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
     const schema = Joi.object({
         memberId: Joi.number().integer().required(),
         serverId: Joi.number().integer().min(0).optional().default(0),
@@ -350,7 +346,6 @@ router.post('/join', async (req, res) => {
  *  Removing a guest: when leaving one squad only and the member has guests (AnonymousUsers > 0), we remove one guest.
  *  Bulk: when leaving multiple squads, the member (and all their guests) are removed from each squad. */
 router.post('/leave', async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
     const schema = Joi.object({
         memberId: Joi.number().integer().required(),
         squadIds: Joi.array().items(Joi.string().uuid()).optional()
@@ -441,7 +436,6 @@ router.post('/leave', async (req, res) => {
 });
 
 router.get('/:id', async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
     try {
         const { squad, squadUsers, squadRelics, squadRefinements, squadPosts } = await getSquadById(req.params.id);
         const squadsFormatted: Squad[] = await mergeSquadQueryResults(
@@ -493,8 +487,6 @@ function squadSignature(s: Squad): string {
 
 /** Create squads. Body: list of squad creation objects (min 1). Equivalency: relics + style + refinements + cycle requirement. Duplicates within the same request are skipped (only one create/join per signature). Against existing: if user is host of matching squad → skip; if user not in matching squad → join it. */
 router.post('/create', async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-
     const squadCreateSchema = Joi.object({
         hostMemberId: Joi.number().integer().required(),
         relics: Joi.array()

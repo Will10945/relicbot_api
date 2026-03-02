@@ -6,7 +6,6 @@ const router = express.Router();
 const relicDebugger = require('debug')('app:relicsEndpoint');
 
 router.get('/', async (req, res) => {
-    res.header("Access-Control-Allow-Origin", "*");
     try {
         const relics = await getAllRelics();
         res.json({ results: relics });
@@ -16,7 +15,6 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/:id/profile', async (req, res) => {
-    res.header("Access-Control-Allow-Origin", "*");
     try {
         const id = parseInt(req.params.id, 10);
         if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid relic ID' });
@@ -33,7 +31,6 @@ router.get('/:id/profile', async (req, res) => {
 });
 
 router.get('/:id', async (req, res) => {
-    res.header("Access-Control-Allow-Origin", "*");
     try {
         const relic = (await getRelic(parseInt(req.params.id)))[0];
         res.json(relic);

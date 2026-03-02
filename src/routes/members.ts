@@ -6,7 +6,6 @@ import { getAllMembers, getMemberById, getMemberProfileData, getProfileOrderBy, 
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-    res.header("Access-Control-Allow-Origin", "*");
     try {
         const members = await getAllMembers();
         res.json({ results: members });
@@ -16,7 +15,6 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/:id/profile', async (req, res) => {
-    res.header("Access-Control-Allow-Origin", "*");
     try {
         const id = parseInt(req.params.id, 10);
         if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid member ID' });
@@ -33,7 +31,6 @@ router.get('/:id/profile', async (req, res) => {
 });
 
 router.get('/:id', async (req, res) => {
-    res.header("Access-Control-Allow-Origin", "*");
     const member = (await getMemberById(parseInt(req.params.id)))[0];
     if (!member) return res.status(404).send('The member with the given id does not exist.');
     res.send(member);
