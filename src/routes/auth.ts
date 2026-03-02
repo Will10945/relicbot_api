@@ -25,7 +25,7 @@ function toMemberPayload(member: { MemberID?: number; MemberName?: string; Disco
 
 const router = express.Router();
 
-const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SESSION_DURATION_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
 
 /** POST /auth/register — body: { username, password, memberId?, discordId?, memberName? }. Creates account, optional member link. Returns { user, expiresAt } and sets session cookie. */
 const registerSchema = Joi.object({
