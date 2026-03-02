@@ -34,17 +34,10 @@ new ServerSocket(httpServer);
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, '../public/views'));
 
-/** CORS: allow Vue dev server; handle OPTIONS (204) and set headers on all responses. credentials for session cookies. */
-const isDev = process.env.NODE_ENV !== 'production';
-const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5173/', 'http://127.0.0.1:5173/'];
+/** CORS: allow any origin; handle OPTIONS (204) and set headers on all responses. credentials for session cookies. */
 app.use(
   cors({
-    origin: isDev
-      ? true // in dev, reflect any origin (e.g. Vue at 5173, or 5174, etc.)
-      : (origin, cb) => {
-          if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-          return cb(null, false);
-        },
+    origin: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
     credentials: true,
