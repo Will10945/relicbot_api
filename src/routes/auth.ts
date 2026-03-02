@@ -14,12 +14,12 @@ import {
 } from '../database/database';
 import { sessionAuth, SESSION_COOKIE_NAME } from '../middleware/sessionAuth';
 
-function toMemberPayload(member: { MemberID?: number; MemberName?: string; DiscordID?: number } | null) {
+function toMemberPayload(member: { MemberID?: number; MemberName?: string; DiscordID?: number | string } | null) {
   if (!member) return null;
   return {
     id: member.MemberID,
     name: member.MemberName,
-    discordId: member.DiscordID,
+    discordId: member.DiscordID != null ? String(member.DiscordID) : undefined,
   };
 }
 
@@ -32,12 +32,11 @@ const registerSchema = Joi.object({
   username: Joi.string().required(),
   password: Joi.string().required(),
   memberId: Joi.number().optional(),
-  discordId: Joi.number().optional(),
+  discordId: Joi.alternatives().try(Joi.string(), Joi.number()).optional(),
   memberName: Joi.string().optional(),
 });
 
 router.post('/register', async (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
   const { error, value } = registerSchema.validate(req.body);
   if (error) {
     return res.status(400).json({ error: error.details.map((d) => d.message).join('; ') });
@@ -48,11 +47,13 @@ router.post('/register', async (req, res) => {
   }
   let memberIdToLink: number | null = null;
   const hasMemberLink =
-    value.memberId != null || value.discordId != null || (value.memberName != null && String(value.memberName).trim() !== '');
+    value.memberId != null ||
+    (value.discordId != null && (typeof value.discordId !== 'string' || value.discordId.trim() !== '')) ||
+    (value.memberName != null && String(value.memberName).trim() !== '');
   if (hasMemberLink) {
     const member = await resolveMember({
       memberId: value.memberId,
-      discordId: value.discordId,
+      discordId: value.discordId != null ? String(value.discordId) : undefined,
       memberName: value.memberName,
     });
     if (!member) {
@@ -95,7 +96,6 @@ router.post('/register', async (req, res) => {
 
 /** POST /auth/login — body: { username, password }. Returns { user: { id, username, member? }, expiresAt }. Sets session cookie. */
 router.post('/login', async (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
   const schema = Joi.object({
     username: Joi.string().required(),
     password: Joi.string().required(),
@@ -137,7 +137,6 @@ router.post('/login', async (req, res) => {
 
 /** POST /auth/logout — invalidates current session. Requires session (cookie or Bearer). */
 router.post('/logout', sessionAuth, async (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
   const token = req.cookies?.[SESSION_COOKIE_NAME] ?? req.headers.authorization?.replace(/^Bearer\s+/i, '').trim();
   if (token) await deleteSessionById(token);
   res.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
@@ -146,7 +145,6 @@ router.post('/logout', sessionAuth, async (req, res) => {
 
 /** GET /auth/me — returns current user (and linked member if any) if session valid, else 401. */
 router.get('/me', sessionAuth, async (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
   if (!req.userId || !req.user) {
     return res.status(401).json({ error: 'Not authenticated.' });
   }
@@ -169,12 +167,11 @@ router.get('/me', sessionAuth, async (req, res) => {
 /** PUT /auth/me/link — link current user to a member by id, discordId, or memberName. Body: { memberId?, discordId?, memberName? } (exactly one). */
 const linkSchema = Joi.object({
   memberId: Joi.number().optional(),
-  discordId: Joi.number().optional(),
+  discordId: Joi.alternatives().try(Joi.string(), Joi.number()).optional(),
   memberName: Joi.string().optional(),
 }).or('memberId', 'discordId', 'memberName');
 
 router.put('/me/link', sessionAuth, async (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
   if (!req.userId || !req.user) {
     return res.status(401).json({ error: 'Not authenticated.' });
   }
@@ -187,7 +184,7 @@ router.put('/me/link', sessionAuth, async (req, res) => {
   }
   const member = await resolveMember({
     memberId: value.memberId,
-    discordId: value.discordId,
+    discordId: value.discordId != null ? String(value.discordId) : undefined,
     memberName: value.memberName,
   });
   if (!member) {
@@ -214,7 +211,6 @@ router.put('/me/link', sessionAuth, async (req, res) => {
 
 /** DELETE /auth/me/link — remove the member link for the current user. */
 router.delete('/me/link', sessionAuth, async (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
   if (!req.userId || !req.user) {
     return res.status(401).json({ error: 'Not authenticated.' });
   }

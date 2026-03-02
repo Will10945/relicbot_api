@@ -114,8 +114,8 @@ export async function getMemberByName(name: string|number) {
     return await SelectQuery<IMemberRow>(`SELECT * FROM ${TABLES.MEMBERS} WHERE MemberName = ?`, [name]);
 }
 
-export async function getMemberByDiscordId(discordId: number) {
-    return await SelectQuery<IMemberRow>(`SELECT * FROM ${TABLES.MEMBERS} WHERE DiscordID = ?`, [discordId]);
+export async function getMemberByDiscordId(discordId: string | number) {
+    return await SelectQuery<IMemberRow>(`SELECT * FROM ${TABLES.MEMBERS} WHERE DiscordID = ?`, [String(discordId)]);
 }
 
 /** Update the member linked to a user. Pass null to unlink. */
@@ -132,15 +132,15 @@ export async function getUserByMemberId(memberId: number): Promise<IUserRow | nu
     return rows[0] ?? null;
 }
 
-/** Resolve a member by id, discord id, or name (first provided wins). Returns single member or null. */
+/** Resolve a member by id, discord id (string to avoid precision loss), or name (first provided wins). Returns single member or null. */
 export async function resolveMember(
-  by: { memberId?: number; discordId?: number; memberName?: string }
+  by: { memberId?: number; discordId?: string | number; memberName?: string }
 ): Promise<IMemberRow | null> {
   if (by.memberId != null) {
     const rows = await getMemberById(by.memberId);
     return rows[0] ?? null;
   }
-  if (by.discordId != null) {
+  if (by.discordId != null && (typeof by.discordId !== 'string' || by.discordId.trim() !== '')) {
     const rows = await getMemberByDiscordId(by.discordId);
     return rows[0] ?? null;
   }
