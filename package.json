@@ -20,6 +20,7 @@
   "dependencies": {
     "bcrypt": "^6.0.0",
     "body-parser": "^1.20.2",
+    "compression": "^1.8.1",
     "config": "^3.3.11",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -40,6 +41,7 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
+    "@types/compression": "^1.8.1",
     "@types/config": "^3.3.4",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.17",

@@ -314,6 +314,10 @@
       "pathParams": [],
       "queryParams": [
         {
+          "name": "isNaN",
+          "type": "string"
+        },
+        {
           "name": "status",
           "type": "string"
         },
@@ -502,10 +506,6 @@
       "bodyParams": [
         {
           "name": "memberId",
-          "type": "number"
-        },
-        {
-          "name": "discordId",
           "type": "number"
         },
         {
