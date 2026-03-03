@@ -120,9 +120,14 @@ async function mergeSquadQueryResults(
     squadRelicsResults.forEach(({ SquadID, RelicID, Offcycle }) => {
         if (!mergedMap[SquadID]) return;
 
-        if (RelicID && !mergedMap[SquadID].RelicIDs[RelicID]) {
-            mergedMap[SquadID].RelicIDs[RelicID] = {
-                Offcycle
+        if (RelicID) {
+            if (!mergedMap[SquadID].RelicIDs[RelicID]) {
+                mergedMap[SquadID].RelicIDs[RelicID] = { Oncycle: 0, Offcycle: 0 };
+            }
+            if (Offcycle) {
+                mergedMap[SquadID].RelicIDs[RelicID].Offcycle = 1;
+            } else {
+                mergedMap[SquadID].RelicIDs[RelicID].Oncycle = 1;
             }
         }
     });
@@ -513,7 +518,12 @@ function createItemSignature(item: SquadCreateRequest): string {
 
 function squadSignature(s: Squad): string {
     const relicPart = Object.entries(s.RelicIDs ?? {})
-        .map(([id, o]) => `${id}:${o.Offcycle ?? 0}`)
+        .flatMap(([id, o]) => {
+            const parts: string[] = [];
+            if (o.Oncycle) parts.push(`${id}:0`);
+            if (o.Offcycle) parts.push(`${id}:1`);
+            return parts;
+        })
         .sort()
         .join(',');
     const refParts = [

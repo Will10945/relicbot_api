@@ -66,6 +66,7 @@ export interface Squad{
     };
     RelicIDs: {
         [RelicID: number]: {
+            Oncycle?: number;
             Offcycle?: number;
         }
     };
