@@ -145,13 +145,17 @@ async function mergeSquadQueryResults(
     });
     squadDebugger('SquadPosts slotted...')
     
-    squadRefinementResults.forEach(({ SquadID, RefinementID, Offcycle }) => {
+    squadRefinementResults.forEach((row) => {
+        const SquadID = row.SquadID ?? row.squadid;
+        const RefinementID = row.RefinementID ?? row.refinementid;
+        const Offcycle = row.Offcycle ?? row.offcycle ?? 0;
         if (!mergedMap[SquadID]) return;
 
-        if (!Offcycle && !mergedMap[SquadID].RefinementIDs.Oncycle.includes(RefinementID)) 
+        if (!Offcycle && !mergedMap[SquadID].RefinementIDs.Oncycle.includes(RefinementID)) {
             mergedMap[SquadID].RefinementIDs.Oncycle.push(RefinementID);
-        else if (Offcycle && !mergedMap[SquadID].RefinementIDs.Offcycle.includes(RefinementID)) 
+        } else if (Offcycle && !mergedMap[SquadID].RefinementIDs.Offcycle.includes(RefinementID)) {
             mergedMap[SquadID].RefinementIDs.Offcycle.push(RefinementID);
+        }
     });
     squadDebugger('SquadRefinements slotted...')
 
