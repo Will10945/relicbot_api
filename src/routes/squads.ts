@@ -178,7 +178,9 @@ router.get('/', async (req, res) => {
             style,
             hostMemberId,
             originatingServerId,
-            filled
+            filled,
+            start,
+            end
         } = req.query as {
             status?: string;
             memberIds?: string;
@@ -189,6 +191,8 @@ router.get('/', async (req, res) => {
             hostMemberId?: string;
             originatingServerId?: string;
             filled?: string;
+            start?: string;
+            end?: string;
         };
 
         const parsedMemberIds = parseNumberArrayParam(memberIds);
@@ -197,6 +201,8 @@ router.get('/', async (req, res) => {
         const parsedHostMemberId = hostMemberId != null && hostMemberId !== '' ? parseInt(String(hostMemberId), 10) : undefined;
         const parsedOriginatingServerId = originatingServerId != null && originatingServerId !== '' ? parseInt(String(originatingServerId), 10) : undefined;
         const parsedFilled = filled === '1' || filled === '0' ? parseInt(filled, 10) : undefined;
+        const offset = start != null && start !== '' ? parseInt(String(start), 10) : 0;
+        const limit = end != null && end !== '' ? parseInt(String(end), 10) : undefined;
 
         const hasFilters =
             !!parsedMemberIds?.length ||
@@ -263,7 +269,13 @@ router.get('/', async (req, res) => {
             filtered = filtered.filter((s) => s.Filled === parsedFilled);
         }
 
-        res.json({ results: filtered });
+        const validOffset = Number.isNaN(offset) || offset < 0 ? 0 : offset;
+        const validLimit = limit !== undefined && !Number.isNaN(limit) && limit > 0 ? limit : undefined;
+        const ranged = validLimit != null
+            ? filtered.slice(validOffset, validOffset + validLimit)
+            : filtered.slice(validOffset);
+
+        res.json({ results: ranged });
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: 'Internal server error' });
