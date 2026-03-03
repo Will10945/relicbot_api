@@ -293,18 +293,27 @@ export async function getSquadById(id: string) {
     return { squad, squadUsers, squadRelics, squadRefinements, squadPosts };
 }
 
-/** Fetch multiple squads and their related rows in 5 queries total. Returns same shape as getSquadById but with arrays for multiple IDs. */
-export async function getSquadsByIds(squadIds: string[]) {
+/** Options for getSquadsByIds. skipPosts: true avoids the squadposts query (e.g. for backfill). */
+export interface GetSquadsByIdsOptions {
+    skipPosts?: boolean;
+}
+
+/** Fetch multiple squads and their related rows. By default 5 queries; with skipPosts: true, 4 queries. Returns same shape as getSquadById but with arrays for multiple IDs. */
+export async function getSquadsByIds(
+    squadIds: string[],
+    opts?: GetSquadsByIdsOptions
+): Promise<{ squads: ISquadRow[]; squadUsers: ISquadUserRow[]; squadRelics: ISquadRelicRow[]; squadRefinements: ISquadRefinementRow[]; squadPosts: ISquadPostRow[] }> {
     if (squadIds.length === 0) {
         return { squads: [], squadUsers: [], squadRelics: [], squadRefinements: [], squadPosts: [] };
     }
     const placeholders = squadIds.map(() => '?').join(',');
+    const skipPosts = opts?.skipPosts === true;
     const [squads, squadUsers, squadRelics, squadRefinements, squadPosts] = await Promise.all([
         SelectQuery<ISquadRow>(`SELECT * FROM ${TABLES.SQUADS} WHERE SquadID IN (${placeholders})`, squadIds),
         SelectQuery<ISquadUserRow>(`SELECT * FROM ${TABLES.SQUADUSERS} WHERE SquadID IN (${placeholders})`, squadIds),
         SelectQuery<ISquadRelicRow>(`SELECT * FROM ${TABLES.SQUADRELICS} WHERE SquadID IN (${placeholders})`, squadIds),
         SelectQuery<ISquadRefinementRow>(`SELECT * FROM ${TABLES.SQUADREFINEMENT} WHERE SquadID IN (${placeholders})`, squadIds),
-        SelectQuery<ISquadPostRow>(`SELECT * FROM ${TABLES.SQUADPOSTS} WHERE SquadID IN (${placeholders})`, squadIds)
+        skipPosts ? Promise.resolve([] as ISquadPostRow[]) : SelectQuery<ISquadPostRow>(`SELECT * FROM ${TABLES.SQUADPOSTS} WHERE SquadID IN (${placeholders})`, squadIds)
     ]);
     return { squads, squadUsers, squadRelics, squadRefinements, squadPosts };
 }
@@ -1342,7 +1351,8 @@ export async function markReputationBackfillProcessed(squadId: string): Promise<
     );
 }
 
-const REP_BATCH_CHUNK = 800;
+/** Chunk size for bulk SELECT/INSERT in reputation backfill. Lower = less MySQL memory per query. */
+const REP_BATCH_CHUNK = 250;
 
 /** Process a full batch of squads in one transaction: aggregate reputation + friends, then bulk upsert. Much faster than per-squad transactions. */
 export async function processReputationBackfillBatch(
@@ -1562,8 +1572,6 @@ export async function processReputationBackfillBatch(
         for (let i = 0; i < memberEntries.length; i += REP_BATCH_CHUNK) {
             const chunk = memberEntries.slice(i, i + REP_BATCH_CHUNK);
             const values = chunk.map(([mid, d]) => [mid, d.day, d.week, d.month, d.threeMonth, d.sixMonth, d.year, d.allTime, d.filledSquads, d.total, d.lastUpdate]).flat();
-            const temp = chunk.map(([_, d]) => [d.lastUpdate]).flat();
-            console.log(temp[82]);
             const placeholders = chunk.map(() => '(?,?,?,?,?,?,?,?,?,?,?)').join(',');
             await connection.execute(
                 `INSERT INTO ${TABLES.MEMBERREPUTATION} (MemberID, Day, Week, Month, ThreeMonth, SixMonth, Year, AllTime, FilledSquads, TotalSquads, LastUpdate)
@@ -1825,9 +1833,9 @@ export function parseFilledOnlyParam(all: unknown): boolean {
 
 export interface MemberProfileData {
     member: { id: number; name: string | null } | null;
-    /** Stats for the requested period (or all-time when no date range). */
+    /** Stats for the requested period (or all-time when no date range). vrbReputation = legacy rep before 2021-09-21 (no timestamps); it is added only into AllTime and TotalSquads. */
     reputation: Record<string, number> | null;
-    /** When a date range is used, all-time totals from memberreputation (TotalSquads, FilledSquads, etc.). Omitted when no range. */
+    /** When a date range is used, all-time totals from memberreputation plus vrbReputation (legacy pre-2021-09-21). Omitted when no range. */
     allTimeReputation?: Record<string, number> | null;
     topFriends: { id: number; name: string | null; squadsTogether: number; filledSquads: number }[];
     mostUsedRelicsOncycle: { id: number; name: string; era: string; squadsTogether: number; filledSquads: number }[];
@@ -1846,12 +1854,13 @@ export async function getMemberProfileData(
     }
     const filledFilter = filledOnly ? ' AND mf.FilledSquads > 0' : '';
     const rfFilledFilter = filledOnly ? ' AND rf.FilledSquads > 0' : '';
-    const [memberRows, repRows, friendRows, relicRowsOn, relicRowsOff] = await Promise.all([
+    const [memberRows, repRows, vrbRows, friendRows, relicRowsOn, relicRowsOff] = await Promise.all([
         SelectQuery<IMemberRow>(`SELECT MemberID, MemberName FROM ${TABLES.MEMBERS} WHERE MemberID = ?`, [memberId]),
         SelectQuery<mysql.RowDataPacket>(
             `SELECT Day, Week, Month, ThreeMonth, SixMonth, Year, AllTime, TotalSquads, FilledSquads, LastUpdate FROM ${TABLES.MEMBERREPUTATION} WHERE MemberID = ?`,
             [memberId]
         ),
+        SelectQuery<mysql.RowDataPacket>(`SELECT reputation FROM ${TABLES.VRB_REPUTATION} WHERE id = ?`, [memberId]), // legacy pre-tracking (before 2021-09-21)
         SelectQuery<mysql.RowDataPacket>(
             `SELECT mf.MemberID1, mf.MemberID2, mf.SquadsTogether, mf.FilledSquads, m1.MemberName AS Name1, m2.MemberName AS Name2
              FROM ${TABLES.MEMBERFRIENDS} mf
@@ -1880,6 +1889,7 @@ export async function getMemberProfileData(
     ]);
     const member = memberRows[0];
     const rep = repRows[0];
+    const vrbValue = Number((vrbRows[0] as { reputation?: number } | undefined)?.reputation ?? 0);
     const reputation = rep
         ? ({
             Day: Number(rep.Day),
@@ -1888,13 +1898,16 @@ export async function getMemberProfileData(
             ThreeMonth: Number(rep.ThreeMonth),
             SixMonth: Number(rep.SixMonth),
             Year: Number(rep.Year),
-            AllTime: Number(rep.AllTime),
-            TotalSquads: Number(rep.TotalSquads),
+            AllTime: Number(rep.AllTime) + vrbValue,
+            TotalSquads: Number(rep.TotalSquads) + vrbValue,
             FilledSquads: Number(rep.FilledSquads),
             FilledSquadsCountedForRep: Number(rep.AllTime),
-            LastUpdate: Number(rep.LastUpdate)
+            LastUpdate: Number(rep.LastUpdate),
+            vrbReputation: vrbValue
         } as Record<string, number>)
-        : null;
+        : (vrbValue > 0
+            ? ({ AllTime: vrbValue, TotalSquads: vrbValue, vrbReputation: vrbValue } as Record<string, number>)
+            : null);
     const topFriends = friendRows.map((r) => {
         const otherId = r.MemberID1 === memberId ? r.MemberID2 : r.MemberID1;
         const name = r.MemberID1 === memberId ? r.Name2 : r.Name1;
@@ -1951,7 +1964,7 @@ async function getMemberProfileDataInRange(
     const { fromSec, toSec } = range;
     const orderCol = PROFILE_SORT_COLUMNS[sortBy];
     const closedRange = `${closedAtSecExpr('s')} BETWEEN ${fromSec} AND ${toSec}`;
-    const [memberRows, repRangeRows, filledClosedRows, allTimeRepRows, friendRows, relicOnRows, relicOffRows] = await Promise.all([
+    const [memberRows, repRangeRows, filledClosedRows, allTimeRepRows, vrbRows, friendRows, relicOnRows, relicOffRows] = await Promise.all([
         SelectQuery<IMemberRow>(`SELECT MemberID, MemberName FROM ${TABLES.MEMBERS} WHERE MemberID = ?`, [memberId]),
         SelectQuery<mysql.RowDataPacket>(
             `SELECT COUNT(*) AS TotalSquads, COALESCE(SUM(s.Filled), 0) AS FilledSquads
@@ -1971,6 +1984,7 @@ async function getMemberProfileDataInRange(
             `SELECT Day, Week, Month, ThreeMonth, SixMonth, Year, AllTime, TotalSquads, FilledSquads, LastUpdate FROM ${TABLES.MEMBERREPUTATION} WHERE MemberID = ?`,
             [memberId]
         ),
+        SelectQuery<mysql.RowDataPacket>(`SELECT reputation FROM ${TABLES.VRB_REPUTATION} WHERE id = ?`, [memberId]), // legacy pre-tracking (before 2021-09-21)
         SelectQuery<mysql.RowDataPacket>(
             `SELECT su2.MemberID AS other_id, COUNT(*) AS SquadsTogether, COALESCE(SUM(s.Filled), 0) AS FilledSquads,
              m.MemberName
@@ -2021,6 +2035,7 @@ async function getMemberProfileDataInRange(
         } as Record<string, number>)
         : null;
     const allTimeRow = allTimeRepRows[0];
+    const vrbValueRange = Number((vrbRows[0] as { reputation?: number } | undefined)?.reputation ?? 0);
     const allTimeReputation = allTimeRow
         ? ({
             Day: Number(allTimeRow.Day),
@@ -2029,13 +2044,16 @@ async function getMemberProfileDataInRange(
             ThreeMonth: Number(allTimeRow.ThreeMonth),
             SixMonth: Number(allTimeRow.SixMonth),
             Year: Number(allTimeRow.Year),
-            AllTime: Number(allTimeRow.AllTime),
-            TotalSquads: Number(allTimeRow.TotalSquads),
+            AllTime: Number(allTimeRow.AllTime) + vrbValueRange,
+            TotalSquads: Number(allTimeRow.TotalSquads) + vrbValueRange,
             FilledSquads: Number(allTimeRow.FilledSquads),
             FilledSquadsCountedForRep: Number(allTimeRow.AllTime),
-            LastUpdate: Number(allTimeRow.LastUpdate)
+            LastUpdate: Number(allTimeRow.LastUpdate),
+            vrbReputation: vrbValueRange
         } as Record<string, number>)
-        : null;
+        : (vrbValueRange > 0
+            ? ({ AllTime: vrbValueRange, TotalSquads: vrbValueRange, vrbReputation: vrbValueRange } as Record<string, number>)
+            : null);
     const topFriends = friendRows.map((r) => ({
         id: r.other_id,
         name: r.MemberName ?? null,

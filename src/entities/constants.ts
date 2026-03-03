@@ -46,6 +46,7 @@ var TABLES = {
     SQUADUSERS: 'squadusers',
     STATUS: 'status',
     REPUTATION_BACKFILL_PROCESSED: 'reputation_backfill_processed',
+    VRB_REPUTATION: 'vrb_reputation',
     USERS: 'users',
     SESSIONS: 'sessions'
 };
@@ -99,6 +100,7 @@ if (process.env.NODE_ENV == 'development'){
         SQUADUSERS: 'squadusers',
         STATUS: 'status',
         REPUTATION_BACKFILL_PROCESSED: 'reputation_backfill_processed',
+        VRB_REPUTATION: 'vrb_reputation',
         USERS: 'users',
         SESSIONS: 'sessions'
     }

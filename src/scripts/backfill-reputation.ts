@@ -5,8 +5,13 @@
  * Usage: npx ts-node src/scripts/backfill-reputation.ts
  * Or: npm run backfill-reputation
  *
+ * Env:
+ *   BACKFILL_BATCH_SIZE - squads per batch (default 500, max 5000). Lower = less MySQL memory.
+ *   BACKFILL_DELAY_MS   - optional delay in ms between batches (default 0). Use e.g. 500 if server is low on memory.
+ *   MAX_CLOSED_AT       - only process squads with ClosedAt <= this (Unix seconds).
+ *
  * Skips squads already in reputation_backfill_processed. Safe to run multiple times.
- * Uses one transaction per batch (aggregate + bulk upsert) for maximum speed.
+ * Uses one transaction per batch (aggregate + bulk upsert). Smaller batches reduce server memory use.
  */
 
 import {
@@ -15,7 +20,19 @@ import {
     processReputationBackfillBatch
 } from '../database/database';
 
-const BATCH_SIZE = 2000;
+const DEFAULT_BATCH_SIZE = 500;
+const BATCH_SIZE = (() => {
+    const env = process.env.BACKFILL_BATCH_SIZE;
+    if (env == null || env === '') return DEFAULT_BATCH_SIZE;
+    const n = parseInt(env, 10);
+    return Number.isFinite(n) && n >= 1 ? Math.min(5000, n) : DEFAULT_BATCH_SIZE;
+})();
+const DELAY_MS = (() => {
+    const env = process.env.BACKFILL_DELAY_MS;
+    if (env == null || env === '') return 0;
+    const n = parseInt(env, 10);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+})();
 const DEADLOCK_RETRY_ATTEMPTS = 3;
 const DEADLOCK_RETRY_DELAY_MS = 1000;
 
@@ -34,7 +51,8 @@ function sleep(ms: number): Promise<void> {
 
 async function main(): Promise<void> {
     const capMsg = MAX_CLOSED_AT_SEC != null && Number.isFinite(MAX_CLOSED_AT_SEC) ? ` (max ClosedAt ${MAX_CLOSED_AT_SEC} s)` : '';
-    console.log(`Starting reputation backfill (batch size ${BATCH_SIZE}, one transaction per batch${capMsg}).`);
+    const delayMsg = DELAY_MS > 0 ? `, ${DELAY_MS}ms delay between batches` : '';
+    console.log(`Starting reputation backfill (batch size ${BATCH_SIZE}${delayMsg}${capMsg}).`);
     let total = 0;
     let batch = 0;
     let failed = 0;
@@ -46,7 +64,7 @@ async function main(): Promise<void> {
         }
         batch++;
         const batchStart = Date.now();
-        const { squads, squadUsers, squadRelics, squadRefinements } = await getSquadsByIds(squadIds);
+        const { squads, squadUsers, squadRelics, squadRefinements } = await getSquadsByIds(squadIds, { skipPosts: true });
         let ok = false;
         let lastErr: unknown;
         for (let attempt = 1; attempt <= DEADLOCK_RETRY_ATTEMPTS; attempt++) {
@@ -77,6 +95,7 @@ async function main(): Promise<void> {
         }
         const elapsed = ((Date.now() - batchStart) / 1000).toFixed(1);
         console.log(`Batch ${batch}: ${squadIds.length} squads in ${elapsed}s (total ok: ${total}, failed batches: ${failed}).`);
+        if (DELAY_MS > 0) await sleep(DELAY_MS);
     }
     console.log(`Backfill complete. Processed ${total} squads.`);
 }
