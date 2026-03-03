@@ -180,6 +180,7 @@ router.get('/', async (req, res) => {
             hostMemberId,
             originatingServerId,
             filled,
+            offcycle,
             start,
             end
         } = req.query as {
@@ -192,6 +193,7 @@ router.get('/', async (req, res) => {
             hostMemberId?: string;
             originatingServerId?: string;
             filled?: string;
+            offcycle?: string;
             start?: string;
             end?: string;
         };
@@ -202,6 +204,7 @@ router.get('/', async (req, res) => {
         const parsedHostMemberId = hostMemberId != null && hostMemberId !== '' ? parseInt(String(hostMemberId), 10) : undefined;
         const parsedOriginatingServerId = originatingServerId != null && originatingServerId !== '' ? parseInt(String(originatingServerId), 10) : undefined;
         const parsedFilled = filled === '1' || filled === '0' ? parseInt(filled, 10) : undefined;
+        const hasOffcycleRelics = offcycle === '1' || offcycle === 'true' || offcycle === 'yes';
         const offset = start != null && start !== '' ? parseInt(String(start), 10) : 0;
         const limit = end != null && end !== '' ? parseInt(String(end), 10) : undefined;
 
@@ -223,6 +226,7 @@ router.get('/', async (req, res) => {
                 hostMemberId: parsedHostMemberId,
                 originatingServerId: parsedOriginatingServerId,
                 filled: parsedFilled,
+                hasOffcycleRelics: hasOffcycleRelics || undefined,
             });
             const squadsFormatted: Squad[] = await mergeSquadQueryResults(
                 squads,
@@ -287,6 +291,12 @@ router.get('/', async (req, res) => {
 
         if (parsedFilled !== undefined) {
             filtered = filtered.filter((s) => s.Filled === parsedFilled);
+        }
+
+        if (hasOffcycleRelics) {
+            filtered = filtered.filter((s) =>
+                Object.values(s.RelicIDs ?? {}).some((r) => r.Offcycle)
+            );
         }
 
         const ranged = validLimit != null

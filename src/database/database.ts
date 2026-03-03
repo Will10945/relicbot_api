@@ -225,13 +225,18 @@ export interface GetSquadsPaginatedOpts {
     hostMemberId?: number;
     originatingServerId?: number;
     filled?: number;
+    /** When true, only squads that have at least one offcycle relic. */
+    hasOffcycleRelics?: boolean;
 }
 
 export async function getSquadsPaginated(opts: GetSquadsPaginatedOpts) {
-    const { status, limit, offset, era, style, hostMemberId, originatingServerId, filled } = opts;
+    const { status, limit, offset, era, style, hostMemberId, originatingServerId, filled, hasOffcycleRelics } = opts;
     const conditions: string[] = [];
     const params: (number | string)[] = [];
 
+    if (hasOffcycleRelics) {
+        conditions.push(`EXISTS (SELECT 1 FROM ${TABLES.SQUADRELICS} sr WHERE sr.SquadID = ${TABLES.SQUADS}.SquadID AND sr.Offcycle = 1)`);
+    }
     if (status === 'active') {
         const cutoffSec = Math.floor(Date.now() / 1000) - ACTIVE_SQUADS_CREATED_SINCE_SEC;
         conditions.push('Active = 1', 'CreatedAt >= ?');
