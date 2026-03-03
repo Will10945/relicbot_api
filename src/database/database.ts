@@ -259,8 +259,10 @@ export async function getSquadsPaginated(opts: GetSquadsPaginatedOpts) {
     }
 
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const sql = `SELECT * FROM ${TABLES.SQUADS} ${whereClause} ORDER BY CreatedAt DESC LIMIT ? OFFSET ?`;
-    const squads = await SelectQuery<ISquadRow>(sql, [...params, limit, offset]);
+    const safeLimit = Math.min(Math.max(0, Math.floor(Number(limit)) || 0), 10000);
+    const safeOffset = Math.max(0, Math.floor(Number(offset)) || 0);
+    const sql = `SELECT * FROM ${TABLES.SQUADS} ${whereClause} ORDER BY CreatedAt DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
+    const squads = await SelectQuery<ISquadRow>(sql, params);
 
     if (squads.length === 0) {
         return { squads: [], squadUsers: [], squadRelics: [], squadRefinements: [], squadPosts: [] };
