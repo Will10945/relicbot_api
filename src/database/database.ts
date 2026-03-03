@@ -1833,9 +1833,9 @@ export function parseFilledOnlyParam(all: unknown): boolean {
 
 export interface MemberProfileData {
     member: { id: number; name: string | null } | null;
-    /** Stats for the requested period (or all-time when no date range). vrbReputation = legacy rep before 2021-09-21 (no timestamps); it is added only into AllTime and TotalSquads. */
+    /** Stats for the requested period (or all-time when no date range). vrbReputation = legacy rep before 2021-09-21 (counts as filled squads); added into AllTime, TotalSquads, FilledSquads, and FilledSquadsCountedForRep. */
     reputation: Record<string, number> | null;
-    /** When a date range is used, all-time totals from memberreputation plus vrbReputation (legacy pre-2021-09-21). Omitted when no range. */
+    /** When a date range is used, all-time totals from memberreputation plus vrbReputation (legacy pre-2021-09-21, counts as filled squads). Omitted when no range. */
     allTimeReputation?: Record<string, number> | null;
     topFriends: { id: number; name: string | null; squadsTogether: number; filledSquads: number }[];
     mostUsedRelicsOncycle: { id: number; name: string; era: string; squadsTogether: number; filledSquads: number }[];
@@ -1900,13 +1900,13 @@ export async function getMemberProfileData(
             Year: Number(rep.Year),
             AllTime: Number(rep.AllTime) + vrbValue,
             TotalSquads: Number(rep.TotalSquads) + vrbValue,
-            FilledSquads: Number(rep.FilledSquads),
-            FilledSquadsCountedForRep: Number(rep.AllTime),
+            FilledSquads: Number(rep.FilledSquads) + vrbValue,
+            FilledSquadsCountedForRep: Number(rep.AllTime) + vrbValue,
             LastUpdate: Number(rep.LastUpdate),
             vrbReputation: vrbValue
         } as Record<string, number>)
         : (vrbValue > 0
-            ? ({ AllTime: vrbValue, TotalSquads: vrbValue, vrbReputation: vrbValue } as Record<string, number>)
+            ? ({ AllTime: vrbValue, TotalSquads: vrbValue, FilledSquads: vrbValue, FilledSquadsCountedForRep: vrbValue, vrbReputation: vrbValue } as Record<string, number>)
             : null);
     const topFriends = friendRows.map((r) => {
         const otherId = r.MemberID1 === memberId ? r.MemberID2 : r.MemberID1;
@@ -2046,13 +2046,13 @@ async function getMemberProfileDataInRange(
             Year: Number(allTimeRow.Year),
             AllTime: Number(allTimeRow.AllTime) + vrbValueRange,
             TotalSquads: Number(allTimeRow.TotalSquads) + vrbValueRange,
-            FilledSquads: Number(allTimeRow.FilledSquads),
-            FilledSquadsCountedForRep: Number(allTimeRow.AllTime),
+            FilledSquads: Number(allTimeRow.FilledSquads) + vrbValueRange,
+            FilledSquadsCountedForRep: Number(allTimeRow.AllTime) + vrbValueRange,
             LastUpdate: Number(allTimeRow.LastUpdate),
             vrbReputation: vrbValueRange
         } as Record<string, number>)
         : (vrbValueRange > 0
-            ? ({ AllTime: vrbValueRange, TotalSquads: vrbValueRange, vrbReputation: vrbValueRange } as Record<string, number>)
+            ? ({ AllTime: vrbValueRange, TotalSquads: vrbValueRange, FilledSquads: vrbValueRange, FilledSquadsCountedForRep: vrbValueRange, vrbReputation: vrbValueRange } as Record<string, number>)
             : null);
     const topFriends = friendRows.map((r) => ({
         id: r.other_id,
