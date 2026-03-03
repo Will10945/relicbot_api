@@ -215,6 +215,67 @@ export async function getActiveSquads() {
     return { squads, squadUsers, squadRelics, squadRefinements, squadPosts };
 }
 
+/** Paginated squads: same shape as getActiveSquads but with LIMIT/OFFSET and optional simple filters. Use for GET /api/squads when no member/relic/refinement filters. */
+export interface GetSquadsPaginatedOpts {
+    status: 'all' | 'active';
+    limit: number;
+    offset: number;
+    era?: string;
+    style?: string;
+    hostMemberId?: number;
+    originatingServerId?: number;
+    filled?: number;
+}
+
+export async function getSquadsPaginated(opts: GetSquadsPaginatedOpts) {
+    const { status, limit, offset, era, style, hostMemberId, originatingServerId, filled } = opts;
+    const conditions: string[] = [];
+    const params: (number | string)[] = [];
+
+    if (status === 'active') {
+        const cutoffSec = Math.floor(Date.now() / 1000) - ACTIVE_SQUADS_CREATED_SINCE_SEC;
+        conditions.push('Active = 1', 'CreatedAt >= ?');
+        params.push(cutoffSec);
+    }
+    if (era != null && era !== '') {
+        conditions.push('Era = ?');
+        params.push(era);
+    }
+    if (style != null && style !== '') {
+        conditions.push('Style = ?');
+        params.push(style);
+    }
+    if (hostMemberId != null) {
+        conditions.push('Host = ?');
+        params.push(hostMemberId);
+    }
+    if (originatingServerId != null) {
+        conditions.push('OriginatingServer = ?');
+        params.push(originatingServerId);
+    }
+    if (filled !== undefined && filled !== null) {
+        conditions.push('Filled = ?');
+        params.push(filled);
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const sql = `SELECT * FROM ${TABLES.SQUADS} ${whereClause} ORDER BY CreatedAt DESC LIMIT ? OFFSET ?`;
+    const squads = await SelectQuery<ISquadRow>(sql, [...params, limit, offset]);
+
+    if (squads.length === 0) {
+        return { squads: [], squadUsers: [], squadRelics: [], squadRefinements: [], squadPosts: [] };
+    }
+    const squadIds = squads.map((s) => s.SquadID);
+    const placeholders = squadIds.map(() => '?').join(',');
+    const [squadUsers, squadRelics, squadRefinements] = await Promise.all([
+        SelectQuery<ISquadUserRow>(`SELECT * FROM ${TABLES.SQUADUSERS} WHERE SquadID IN (${placeholders})`, squadIds),
+        SelectQuery<ISquadRelicRow>(`SELECT * FROM ${TABLES.SQUADRELICS} WHERE SquadID IN (${placeholders})`, squadIds),
+        SelectQuery<ISquadRefinementRow>(`SELECT * FROM ${TABLES.SQUADREFINEMENT} WHERE SquadID IN (${placeholders})`, squadIds)
+    ]);
+    const squadPosts: ISquadPostRow[] = [];
+    return { squads, squadUsers, squadRelics, squadRefinements, squadPosts };
+}
+
 export async function getSquadById(id: string) {
     const squad = await SelectQuery<ISquadRow>(`SELECT * FROM ${TABLES.SQUADS} WHERE SquadID = ?;`, [id]);
     const squadUsers = await SelectQuery<ISquadUserRow>(`SELECT * FROM ${TABLES.SQUADUSERS} WHERE SquadID = ?;`, [id]);

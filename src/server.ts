@@ -4,6 +4,7 @@ import morgan from 'morgan';
 import path from 'path';
 import http from 'http';
 import cors from 'cors';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 
 const startupDebugger = require('debug')('app:startup');
@@ -45,6 +46,7 @@ app.use(
   })
 );
 
+app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

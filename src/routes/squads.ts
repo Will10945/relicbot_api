@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import {
     getActiveSquads,
     getAllSquads,
+    getSquadsPaginated,
     getSquadById,
     getSquadsByIds,
     getActiveSquadIdsByMemberId,
@@ -204,15 +205,34 @@ router.get('/', async (req, res) => {
         const offset = start != null && start !== '' ? parseInt(String(start), 10) : 0;
         const limit = end != null && end !== '' ? parseInt(String(end), 10) : undefined;
 
-        const hasFilters =
+        const validOffset = Number.isNaN(offset) || offset < 0 ? 0 : offset;
+        const validLimit = limit !== undefined && !Number.isNaN(limit) && limit > 0 ? limit : undefined;
+        const hasComplexFilters =
             !!parsedMemberIds?.length ||
             !!parsedRelicIds?.length ||
-            !!parsedRefinementIds?.length ||
-            !!era ||
-            !!style ||
-            parsedHostMemberId !== undefined ||
-            parsedOriginatingServerId !== undefined ||
-            parsedFilled !== undefined;
+            !!parsedRefinementIds?.length;
+
+        if (!hasComplexFilters) {
+            const pageLimit = validLimit ?? 100;
+            const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getSquadsPaginated({
+                status: status === 'active' ? 'active' : 'all',
+                limit: pageLimit,
+                offset: validOffset,
+                era: era as string | undefined,
+                style: style as string | undefined,
+                hostMemberId: parsedHostMemberId,
+                originatingServerId: parsedOriginatingServerId,
+                filled: parsedFilled,
+            });
+            const squadsFormatted: Squad[] = await mergeSquadQueryResults(
+                squads,
+                squadUsers,
+                squadRelics,
+                squadRefinements,
+                squadPosts
+            );
+            return res.json({ results: squadsFormatted });
+        }
 
         const fetchFn = status === 'active' ? getActiveSquads : getAllSquads;
         const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await fetchFn();
@@ -269,8 +289,6 @@ router.get('/', async (req, res) => {
             filtered = filtered.filter((s) => s.Filled === parsedFilled);
         }
 
-        const validOffset = Number.isNaN(offset) || offset < 0 ? 0 : offset;
-        const validLimit = limit !== undefined && !Number.isNaN(limit) && limit > 0 ? limit : undefined;
         const ranged = validLimit != null
             ? filtered.slice(validOffset, validOffset + validLimit)
             : filtered.slice(validOffset);
