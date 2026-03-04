@@ -335,6 +335,55 @@ export function getSquadCountsPerDayOrderBy(sort: string): SquadCountPerDaySort 
     return 'date';
 }
 
+/** Reputation (squad counts) per calendar day for one member. Same shape as SquadCountPerDay. */
+export interface MemberReputationPerDay {
+    date: string;
+    total: number;
+    filled: number;
+    unfilled: number;
+}
+
+export type MemberReputationPerDaySort = 'date' | 'filled' | 'total' | 'unfilled';
+
+/** Parse sort param for member reputation-per-day: date (default, ascending), filled, total, unfilled (others descending). */
+export function getMemberReputationPerDayOrderBy(sort: string): MemberReputationPerDaySort {
+    const s = (sort ?? '').toLowerCase();
+    if (s === 'filled' || s === 'total' || s === 'unfilled') return s;
+    return 'date';
+}
+
+/** Return reputation per day for a member (closed squads they participated in). Sorted by date ascending when sort=date, else by sort field descending. */
+export async function getMemberReputationPerDay(
+    memberId: number,
+    sortBy: MemberReputationPerDaySort = 'date'
+): Promise<MemberReputationPerDay[]> {
+    const closedSecExpr = `IF(s.ClosedAt >= 10000000000, FLOOR(s.ClosedAt/1000), s.ClosedAt)`;
+    const rows = await SelectQuery<mysql.RowDataPacket>(
+        `SELECT DATE(FROM_UNIXTIME(${closedSecExpr})) AS day_date,
+                COUNT(*) AS total,
+                COALESCE(SUM(s.Filled), 0) AS filled
+         FROM ${TABLES.SQUADS} s
+         INNER JOIN ${TABLES.SQUADUSERS} su ON s.SquadID = su.SquadID AND su.MemberID = ?
+         WHERE s.ClosedAt IS NOT NULL
+         GROUP BY day_date`,
+        [memberId]
+    );
+    const results: MemberReputationPerDay[] = (rows as { day_date: unknown; total: number; filled: number }[]).map((r) => {
+        const total = Number(r.total);
+        const filled = Number(r.filled);
+        return { date: toDateString(r.day_date), total, filled, unfilled: total - filled };
+    });
+    if (sortBy === 'date') {
+        results.sort((a, b) => a.date.localeCompare(b.date));
+    } else {
+        results.sort((a, b) => {
+            const diff = (b[sortBy] as number) - (a[sortBy] as number);
+            return diff !== 0 ? diff : a.date.localeCompare(b.date);
+        });
+    }
+    return results;
+}
+
 function allDatesBetween(minDate: string, maxDate: string): string[] {
     const min = new Date(minDate);
     const max = new Date(maxDate);
