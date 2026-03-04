@@ -1833,9 +1833,9 @@ export function parseFilledOnlyParam(all: unknown): boolean {
 
 export interface MemberProfileData {
     member: { id: number; name: string | null } | null;
-    /** Stats for the requested period (or all-time when no date range). vrbReputation = legacy rep before 2021-09-21 (counts as filled squads); added into AllTime, TotalSquads, FilledSquads, and FilledSquadsCountedForRep. */
+    /** Stats for the requested period (or all-time when no date range). vrbReputation and missingReputation count as filled squads; added into AllTime, TotalSquads, FilledSquads, FilledSquadsCountedForRep. */
     reputation: Record<string, number> | null;
-    /** When a date range is used, all-time totals from memberreputation plus vrbReputation (legacy pre-2021-09-21, counts as filled squads). Omitted when no range. */
+    /** When a date range is used, all-time totals from memberreputation plus vrbReputation and missingReputation (count as filled squads). Omitted when no range. */
     allTimeReputation?: Record<string, number> | null;
     topFriends: { id: number; name: string | null; squadsTogether: number; filledSquads: number }[];
     mostUsedRelicsOncycle: { id: number; name: string; era: string; squadsTogether: number; filledSquads: number }[];
@@ -1853,14 +1853,16 @@ export async function getMemberProfileData(
         return getMemberProfileDataInRange(memberId, sortBy, filledOnly, dateRange);
     }
     const filledFilter = filledOnly ? ' AND mf.FilledSquads > 0' : '';
+    const missingFriendFilledFilter = filledOnly ? ' AND mf.FilledSquads > 0' : '';
     const rfFilledFilter = filledOnly ? ' AND rf.FilledSquads > 0' : '';
-    const [memberRows, repRows, vrbRows, friendRows, relicRowsOn, relicRowsOff] = await Promise.all([
+    const [memberRows, repRows, vrbRows, missingRepRows, friendRows, missingFriendRows, relicRowsOn, relicRowsOff] = await Promise.all([
         SelectQuery<IMemberRow>(`SELECT MemberID, MemberName FROM ${TABLES.MEMBERS} WHERE MemberID = ?`, [memberId]),
         SelectQuery<mysql.RowDataPacket>(
             `SELECT Day, Week, Month, ThreeMonth, SixMonth, Year, AllTime, TotalSquads, FilledSquads, LastUpdate FROM ${TABLES.MEMBERREPUTATION} WHERE MemberID = ?`,
             [memberId]
         ),
-        SelectQuery<mysql.RowDataPacket>(`SELECT reputation FROM ${TABLES.VRB_REPUTATION} WHERE id = ?`, [memberId]), // legacy pre-tracking (before 2021-09-21)
+        SelectQuery<mysql.RowDataPacket>(`SELECT reputation FROM ${TABLES.VRB_REPUTATION} WHERE id = ?`, [memberId]),
+        SelectQuery<mysql.RowDataPacket>(`SELECT reputation FROM ${TABLES.MISSING_REPUTATION} WHERE id = ?`, [memberId]),
         SelectQuery<mysql.RowDataPacket>(
             `SELECT mf.MemberID1, mf.MemberID2, mf.SquadsTogether, mf.FilledSquads, m1.MemberName AS Name1, m2.MemberName AS Name2
              FROM ${TABLES.MEMBERFRIENDS} mf
@@ -1868,6 +1870,14 @@ export async function getMemberProfileData(
              JOIN ${TABLES.MEMBERS} m2 ON m2.MemberID = mf.MemberID2
              WHERE (mf.MemberID1 = ? OR mf.MemberID2 = ?)${filledFilter}
              ORDER BY mf.${orderCol} DESC`,
+            [memberId, memberId]
+        ),
+        SelectQuery<mysql.RowDataPacket>(
+            `SELECT mf.MemberID1, mf.MemberID2, mf.SquadsTogether, mf.FilledSquads, m1.MemberName AS Name1, m2.MemberName AS Name2
+             FROM ${TABLES.MISSING_FRIENDS} mf
+             JOIN ${TABLES.MEMBERS} m1 ON m1.MemberID = mf.MemberID1
+             JOIN ${TABLES.MEMBERS} m2 ON m2.MemberID = mf.MemberID2
+             WHERE (mf.MemberID1 = ? OR mf.MemberID2 = ?)${missingFriendFilledFilter}`,
             [memberId, memberId]
         ),
         SelectQuery<mysql.RowDataPacket>(
@@ -1890,6 +1900,8 @@ export async function getMemberProfileData(
     const member = memberRows[0];
     const rep = repRows[0];
     const vrbValue = Number((vrbRows[0] as { reputation?: number } | undefined)?.reputation ?? 0);
+    const missingValue = Number((missingRepRows[0] as { reputation?: number } | undefined)?.reputation ?? 0);
+    const legacyTotal = vrbValue + missingValue;
     const reputation = rep
         ? ({
             Day: Number(rep.Day),
@@ -1898,21 +1910,36 @@ export async function getMemberProfileData(
             ThreeMonth: Number(rep.ThreeMonth),
             SixMonth: Number(rep.SixMonth),
             Year: Number(rep.Year),
-            AllTime: Number(rep.AllTime) + vrbValue,
-            TotalSquads: Number(rep.TotalSquads) + vrbValue,
-            FilledSquads: Number(rep.FilledSquads) + vrbValue,
-            FilledSquadsCountedForRep: Number(rep.AllTime) + vrbValue,
+            AllTime: Number(rep.AllTime) + legacyTotal,
+            TotalSquads: Number(rep.TotalSquads) + legacyTotal,
+            FilledSquads: Number(rep.FilledSquads) + legacyTotal,
+            FilledSquadsCountedForRep: Number(rep.AllTime) + legacyTotal,
             LastUpdate: Number(rep.LastUpdate),
-            vrbReputation: vrbValue
+            vrbReputation: vrbValue,
+            missingReputation: missingValue
         } as Record<string, number>)
-        : (vrbValue > 0
-            ? ({ AllTime: vrbValue, TotalSquads: vrbValue, FilledSquads: vrbValue, FilledSquadsCountedForRep: vrbValue, vrbReputation: vrbValue } as Record<string, number>)
+        : (legacyTotal > 0
+            ? ({ AllTime: legacyTotal, TotalSquads: legacyTotal, FilledSquads: legacyTotal, FilledSquadsCountedForRep: legacyTotal, vrbReputation: vrbValue, missingReputation: missingValue } as Record<string, number>)
             : null);
-    const topFriends = friendRows.map((r) => {
+    const friendMap = new Map<string, { otherId: number; name: string | null; squadsTogether: number; filledSquads: number }>();
+    const addFriend = (r: { MemberID1: number; MemberID2: number; SquadsTogether: number; FilledSquads?: number; Name1?: string; Name2?: string }) => {
         const otherId = r.MemberID1 === memberId ? r.MemberID2 : r.MemberID1;
         const name = r.MemberID1 === memberId ? r.Name2 : r.Name1;
-        return { id: otherId, name: name ?? null, squadsTogether: r.SquadsTogether, filledSquads: r.FilledSquads ?? 0 };
-    });
+        const key = `${Math.min(r.MemberID1, r.MemberID2)},${Math.max(r.MemberID1, r.MemberID2)}`;
+        const existing = friendMap.get(key);
+        const st = Number(r.SquadsTogether ?? 0);
+        const fs = Number(r.FilledSquads ?? 0);
+        if (existing) {
+            existing.squadsTogether += st;
+            existing.filledSquads += fs;
+        } else {
+            friendMap.set(key, { otherId, name: name ?? null, squadsTogether: st, filledSquads: fs });
+        }
+    };
+    friendRows.forEach((r) => addFriend(r as { MemberID1: number; MemberID2: number; SquadsTogether: number; FilledSquads?: number; Name1?: string; Name2?: string }));
+    missingFriendRows.forEach((r) => addFriend(r as { MemberID1: number; MemberID2: number; SquadsTogether: number; FilledSquads?: number; Name1?: string; Name2?: string }));
+    const topFriends = [...friendMap.values()].map((v) => ({ id: v.otherId, name: v.name, squadsTogether: v.squadsTogether, filledSquads: v.filledSquads }))
+        .sort((a, b) => (orderCol === 'FilledSquads' ? b.filledSquads - a.filledSquads : b.squadsTogether - a.squadsTogether));
     const mostUsedRelicsOncycle = relicRowsOn.map((r) => ({
         id: r.RelicID,
         name: r.Name,
@@ -1964,7 +1991,7 @@ async function getMemberProfileDataInRange(
     const { fromSec, toSec } = range;
     const orderCol = PROFILE_SORT_COLUMNS[sortBy];
     const closedRange = `${closedAtSecExpr('s')} BETWEEN ${fromSec} AND ${toSec}`;
-    const [memberRows, repRangeRows, filledClosedRows, allTimeRepRows, vrbRows, friendRows, relicOnRows, relicOffRows] = await Promise.all([
+    const [memberRows, repRangeRows, filledClosedRows, allTimeRepRows, vrbRows, missingRepRows, friendRows, missingFriendRows, relicOnRows, relicOffRows] = await Promise.all([
         SelectQuery<IMemberRow>(`SELECT MemberID, MemberName FROM ${TABLES.MEMBERS} WHERE MemberID = ?`, [memberId]),
         SelectQuery<mysql.RowDataPacket>(
             `SELECT COUNT(*) AS TotalSquads, COALESCE(SUM(s.Filled), 0) AS FilledSquads
@@ -1984,7 +2011,8 @@ async function getMemberProfileDataInRange(
             `SELECT Day, Week, Month, ThreeMonth, SixMonth, Year, AllTime, TotalSquads, FilledSquads, LastUpdate FROM ${TABLES.MEMBERREPUTATION} WHERE MemberID = ?`,
             [memberId]
         ),
-        SelectQuery<mysql.RowDataPacket>(`SELECT reputation FROM ${TABLES.VRB_REPUTATION} WHERE id = ?`, [memberId]), // legacy pre-tracking (before 2021-09-21)
+        SelectQuery<mysql.RowDataPacket>(`SELECT reputation FROM ${TABLES.VRB_REPUTATION} WHERE id = ?`, [memberId]),
+        SelectQuery<mysql.RowDataPacket>(`SELECT reputation FROM ${TABLES.MISSING_REPUTATION} WHERE id = ?`, [memberId]),
         SelectQuery<mysql.RowDataPacket>(
             `SELECT su2.MemberID AS other_id, COUNT(*) AS SquadsTogether, COALESCE(SUM(s.Filled), 0) AS FilledSquads,
              m.MemberName
@@ -1997,6 +2025,14 @@ async function getMemberProfileDataInRange(
              ${filledOnly ? 'HAVING FilledSquads > 0' : ''}
              ORDER BY ${orderCol === 'FilledSquads' ? 'FilledSquads' : 'SquadsTogether'} DESC`,
             [memberId]
+        ),
+        SelectQuery<mysql.RowDataPacket>(
+            `SELECT mf.MemberID1, mf.MemberID2, mf.SquadsTogether, mf.FilledSquads, m1.MemberName AS Name1, m2.MemberName AS Name2
+             FROM ${TABLES.MISSING_FRIENDS} mf
+             JOIN ${TABLES.MEMBERS} m1 ON m1.MemberID = mf.MemberID1
+             JOIN ${TABLES.MEMBERS} m2 ON m2.MemberID = mf.MemberID2
+             WHERE (mf.MemberID1 = ? OR mf.MemberID2 = ?)${filledOnly ? ' AND mf.FilledSquads > 0' : ''}`,
+            [memberId, memberId]
         ),
         SelectQuery<mysql.RowDataPacket>(
             `SELECT sr.RelicID, COUNT(*) AS SquadsTogether, COALESCE(SUM(s.Filled), 0) AS FilledSquads, r.Era, r.Name
@@ -2036,6 +2072,8 @@ async function getMemberProfileDataInRange(
         : null;
     const allTimeRow = allTimeRepRows[0];
     const vrbValueRange = Number((vrbRows[0] as { reputation?: number } | undefined)?.reputation ?? 0);
+    const missingValueRange = Number((missingRepRows[0] as { reputation?: number } | undefined)?.reputation ?? 0);
+    const legacyTotalRange = vrbValueRange + missingValueRange;
     const allTimeReputation = allTimeRow
         ? ({
             Day: Number(allTimeRow.Day),
@@ -2044,22 +2082,47 @@ async function getMemberProfileDataInRange(
             ThreeMonth: Number(allTimeRow.ThreeMonth),
             SixMonth: Number(allTimeRow.SixMonth),
             Year: Number(allTimeRow.Year),
-            AllTime: Number(allTimeRow.AllTime) + vrbValueRange,
-            TotalSquads: Number(allTimeRow.TotalSquads) + vrbValueRange,
-            FilledSquads: Number(allTimeRow.FilledSquads) + vrbValueRange,
-            FilledSquadsCountedForRep: Number(allTimeRow.AllTime) + vrbValueRange,
+            AllTime: Number(allTimeRow.AllTime) + legacyTotalRange,
+            TotalSquads: Number(allTimeRow.TotalSquads) + legacyTotalRange,
+            FilledSquads: Number(allTimeRow.FilledSquads) + legacyTotalRange,
+            FilledSquadsCountedForRep: Number(allTimeRow.AllTime) + legacyTotalRange,
             LastUpdate: Number(allTimeRow.LastUpdate),
-            vrbReputation: vrbValueRange
+            vrbReputation: vrbValueRange,
+            missingReputation: missingValueRange
         } as Record<string, number>)
-        : (vrbValueRange > 0
-            ? ({ AllTime: vrbValueRange, TotalSquads: vrbValueRange, FilledSquads: vrbValueRange, FilledSquadsCountedForRep: vrbValueRange, vrbReputation: vrbValueRange } as Record<string, number>)
+        : (legacyTotalRange > 0
+            ? ({ AllTime: legacyTotalRange, TotalSquads: legacyTotalRange, FilledSquads: legacyTotalRange, FilledSquadsCountedForRep: legacyTotalRange, vrbReputation: vrbValueRange, missingReputation: missingValueRange } as Record<string, number>)
             : null);
-    const topFriends = friendRows.map((r) => ({
-        id: r.other_id,
-        name: r.MemberName ?? null,
-        squadsTogether: Number(r.SquadsTogether),
-        filledSquads: Number(r.FilledSquads ?? 0)
-    }));
+    const friendMapRange = new Map<number, { name: string | null; squadsTogether: number; filledSquads: number }>();
+    friendRows.forEach((r) => {
+        const row = r as { other_id: number; MemberName?: string; SquadsTogether: number; FilledSquads?: number };
+        const id = row.other_id;
+        const existing = friendMapRange.get(id);
+        const st = Number(row.SquadsTogether ?? 0);
+        const fs = Number(row.FilledSquads ?? 0);
+        if (existing) {
+            existing.squadsTogether += st;
+            existing.filledSquads += fs;
+        } else {
+            friendMapRange.set(id, { name: row.MemberName ?? null, squadsTogether: st, filledSquads: fs });
+        }
+    });
+    missingFriendRows.forEach((r) => {
+        const row = r as { MemberID1: number; MemberID2: number; SquadsTogether: number; FilledSquads?: number; Name1?: string; Name2?: string };
+        const otherId = row.MemberID1 === memberId ? row.MemberID2 : row.MemberID1;
+        const name = row.MemberID1 === memberId ? row.Name2 : row.Name1;
+        const existing = friendMapRange.get(otherId);
+        const st = Number(row.SquadsTogether ?? 0);
+        const fs = Number(row.FilledSquads ?? 0);
+        if (existing) {
+            existing.squadsTogether += st;
+            existing.filledSquads += fs;
+        } else {
+            friendMapRange.set(otherId, { name: name ?? null, squadsTogether: st, filledSquads: fs });
+        }
+    });
+    const topFriends = [...friendMapRange.entries()].map(([id, v]) => ({ id, name: v.name, squadsTogether: v.squadsTogether, filledSquads: v.filledSquads }))
+        .sort((a, b) => (orderCol === 'FilledSquads' ? b.filledSquads - a.filledSquads : b.squadsTogether - a.squadsTogether));
     const mostUsedRelicsOncycle = relicOnRows.map((r) => ({
         id: r.RelicID,
         name: r.Name,

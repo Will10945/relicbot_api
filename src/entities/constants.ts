@@ -47,6 +47,8 @@ var TABLES = {
     STATUS: 'status',
     REPUTATION_BACKFILL_PROCESSED: 'reputation_backfill_processed',
     VRB_REPUTATION: 'vrb_reputation',
+    MISSING_REPUTATION: 'missing_reputation',
+    MISSING_FRIENDS: 'missing_friends',
     USERS: 'users',
     SESSIONS: 'sessions'
 };
@@ -101,6 +103,8 @@ if (process.env.NODE_ENV == 'development'){
         STATUS: 'status',
         REPUTATION_BACKFILL_PROCESSED: 'reputation_backfill_processed',
         VRB_REPUTATION: 'vrb_reputation',
+        MISSING_REPUTATION: 'missing_reputation',
+        MISSING_FRIENDS: 'missing_friends',
         USERS: 'users',
         SESSIONS: 'sessions'
     }
