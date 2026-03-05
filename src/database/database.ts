@@ -353,27 +353,46 @@ export function getMemberReputationPerDayOrderBy(sort: string): MemberReputation
     return 'date';
 }
 
-/** Return reputation per day for a member (closed squads they participated in). Sorted by date ascending when sort=date, else by sort field descending. */
+/** Return reputation per day for a member, counting ONLY credited filled squads (respecting 20-min cooldown). Sorted by date ascending when sort=date, else by sort field descending. */
 export async function getMemberReputationPerDay(
     memberId: number,
     sortBy: MemberReputationPerDaySort = 'date'
 ): Promise<MemberReputationPerDay[]> {
-    const closedSecExpr = `IF(s.ClosedAt >= 10000000000, FLOOR(s.ClosedAt/1000), s.ClosedAt)`;
+    const closedSecExpr = closedAtSecExpr('s');
     const rows = await SelectQuery<mysql.RowDataPacket>(
-        `SELECT DATE(FROM_UNIXTIME(${closedSecExpr})) AS day_date,
-                COUNT(*) AS total,
-                COALESCE(SUM(s.Filled), 0) AS filled
+        `SELECT ${closedSecExpr} AS closed_sec,
+                DATE(FROM_UNIXTIME(${closedSecExpr})) AS day_date
          FROM ${TABLES.SQUADS} s
          INNER JOIN ${TABLES.SQUADUSERS} su ON s.SquadID = su.SquadID AND su.MemberID = ?
-         WHERE s.ClosedAt IS NOT NULL
-         GROUP BY day_date`,
+         WHERE s.ClosedAt IS NOT NULL AND s.Filled = 1
+         ORDER BY closed_sec`,
         [memberId]
     );
-    const results: MemberReputationPerDay[] = (rows as { day_date: unknown; total: number; filled: number }[]).map((r) => {
-        const total = Number(r.total);
-        const filled = Number(r.filled);
-        return { date: toDateString(r.day_date), total, filled, unfilled: total - filled };
-    });
+
+    // Apply 20-min cooldown across the full timeline and bucket only credited squads per day.
+    const perDay = new Map<string, { total: number; filled: number }>();
+    let lastCountedSec: number | null = null;
+
+    for (const r of rows as { closed_sec: number; day_date: unknown }[]) {
+        const closedSec = Number(r.closed_sec);
+        const day = toDateString(r.day_date);
+
+        if (lastCountedSec == null || closedSec - lastCountedSec >= MEMBER_REPUTATION_COOLDOWN_SEC) {
+            lastCountedSec = closedSec;
+            const entry = perDay.get(day) ?? { total: 0, filled: 0 };
+            entry.total += 1;
+            entry.filled += 1;
+            perDay.set(day, entry);
+        }
+        // Squads within the cooldown window are ignored for this endpoint.
+    }
+
+    const results: MemberReputationPerDay[] = [...perDay.entries()].map(([date, v]) => ({
+        date,
+        total: v.total,
+        filled: v.filled,
+        unfilled: 0
+    }));
     if (sortBy === 'date') {
         results.sort((a, b) => a.date.localeCompare(b.date));
     } else {
