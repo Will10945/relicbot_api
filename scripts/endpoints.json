@@ -85,7 +85,16 @@
     {
       "method": "GET",
       "pathParams": [],
-      "queryParams": [],
+      "queryParams": [
+        {
+          "name": "ids",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        }
+      ],
       "bodyParams": [],
       "responseShape": "{ results }",
       "description": "",
@@ -236,6 +245,76 @@
       "description": "",
       "sourceFile": "src/routes/members.ts",
       "path": "/api/members/:id/reputation-per-day"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [
+        {
+          "name": "sort",
+          "type": "string"
+        },
+        {
+          "name": "all",
+          "type": "string"
+        },
+        {
+          "name": "from",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "to",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "filled",
+          "type": "string"
+        }
+      ],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "",
+      "sourceFile": "src/routes/members.ts",
+      "path": "/api/members/profiles"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [
+        {
+          "name": "sort",
+          "type": "string"
+        },
+        {
+          "name": "all",
+          "type": "string"
+        },
+        {
+          "name": "from",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "to",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "filled",
+          "type": "string"
+        }
+      ],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "",
+      "sourceFile": "src/routes/members.ts",
+      "path": "/api/members/profiles"
     },
     {
       "method": "GET",
