@@ -12,6 +12,7 @@
     "backfill-reputation": "ts-node src/scripts/backfill-reputation.ts",
     "list-endpoints": "ts-node scripts/list-endpoints.ts",
     "create-user": "ts-node src/scripts/create-user.ts",
+    "sync-relrun": "ts-node src/scripts/sync-relrun.ts",
     "wipe-squads-members": "ts-node scripts/wipe-squads-members-reputation-friends.ts",
     "clear-reputation-for-backfill": "ts-node scripts/clear-reputation-for-backfill.ts"
   },

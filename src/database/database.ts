@@ -7,6 +7,7 @@ import IRelicRow from '../entities/db.relics';
 import IPrimeSetRow from '../entities/db.primeSets';
 import IPrimePartRow from '../entities/db.primeParts';
 import IRefinementRow from '../entities/db.refinement';
+import IRelicDropDataRow from '../entities/db.relicDropData';
 import TABLES from '../entities/constants';
 import { max } from 'underscore';
 
@@ -492,6 +493,182 @@ export async function getAllPrimeParts() {
     return await SelectQuery<IPrimePartRow>(
         `SELECT * FROM ${TABLES.PRIMEPARTS}`
     );
+}
+
+export interface PrimeSetWithParts extends IPrimeSetRow {
+    parts: Array<{ Part: string; Price: number; Ducats: number; Required: number }>;
+}
+
+export async function getPrimeSetsWithParts(): Promise<PrimeSetWithParts[]> {
+    const sets = await SelectQuery<IPrimeSetRow>(`SELECT * FROM ${TABLES.PRIMESETS}`);
+    const parts = await SelectQuery<IPrimePartRow>(`SELECT * FROM ${TABLES.PRIMEPARTS}`);
+    const partsBySet = new Map<string, IPrimePartRow[]>();
+    for (const p of parts) {
+        const list = partsBySet.get(p.PrimeSet) ?? [];
+        list.push(p);
+        partsBySet.set(p.PrimeSet, list);
+    }
+    return sets.map((s) => ({
+        ...s,
+        parts: (partsBySet.get(s.PrimeSet) ?? []).map((p) => ({
+            Part: p.Part,
+            Price: p.Price,
+            Ducats: p.Ducats,
+            Required: p.Required
+        }))
+    }));
+}
+
+export async function getPrimeSetByName(setName: string): Promise<PrimeSetWithParts | null> {
+    const rows = await SelectQuery<IPrimeSetRow>(
+        `SELECT * FROM ${TABLES.PRIMESETS} WHERE PrimeSet = ?`,
+        [setName]
+    );
+    const set = rows[0];
+    if (!set) return null;
+    const partRows = await SelectQuery<IPrimePartRow>(
+        `SELECT * FROM ${TABLES.PRIMEPARTS} WHERE PrimeSet = ?`,
+        [setName]
+    );
+    return {
+        ...set,
+        parts: partRows.map((p) => ({
+            Part: p.Part,
+            Price: p.Price,
+            Ducats: p.Ducats,
+            Required: p.Required
+        }))
+    };
+}
+
+export async function getPrimePart(setName: string, partName: string): Promise<IPrimePartRow | null> {
+    const rows = await SelectQuery<IPrimePartRow>(
+        `SELECT * FROM ${TABLES.PRIMEPARTS} WHERE PrimeSet = ? AND Part = ?`,
+        [setName, partName]
+    );
+    return rows[0] ?? null;
+}
+
+export interface RelicDropRow {
+    partName: string;
+    rarity: string;
+    ducats: number;
+    price: number;
+    chances?: Record<string, number> | null;
+}
+
+function mapDropRow(r: IRelicDropDataRow): RelicDropRow {
+    return {
+        partName: r.PartName,
+        rarity: r.Rarity,
+        ducats: r.Ducats,
+        price: r.Price,
+        chances: r.Chances != null ? (typeof r.Chances === 'string' ? JSON.parse(r.Chances) : r.Chances) : null
+    };
+}
+
+export async function getRelicDrops(relicId: number): Promise<RelicDropRow[]> {
+    const rows = await SelectQuery<IRelicDropDataRow>(
+        `SELECT PartName, Rarity, Ducats, Price, Chances FROM ${TABLES.RELICDROPDATA} WHERE RelicID = ?`,
+        [relicId]
+    );
+    return rows.map(mapDropRow);
+}
+
+export async function getRelicDropsByRelicIds(relicIds: number[]): Promise<Map<number, RelicDropRow[]>> {
+    const map = new Map<number, RelicDropRow[]>();
+    if (relicIds.length === 0) return map;
+    const placeholders = relicIds.map(() => '?').join(',');
+    const rows = await SelectQuery<IRelicDropDataRow & { RelicID: number }>(
+        `SELECT RelicID, PartName, Rarity, Ducats, Price, Chances FROM ${TABLES.RELICDROPDATA} WHERE RelicID IN (${placeholders})`,
+        relicIds
+    );
+    for (const r of rows) {
+        const list = map.get(r.RelicID) ?? [];
+        list.push(mapDropRow(r));
+        map.set(r.RelicID, list);
+    }
+    return map;
+}
+
+export interface RelrunSyncPayload {
+    primeSets: Array<{
+        PrimeSet: string;
+        Price: number;
+        Ducats: number;
+        PartsTotalPrice: number;
+        Category: string;
+        Vaulted: number;
+    }>;
+    primeParts: Array<{
+        PrimeSet: string;
+        Part: string;
+        Price: number;
+        Ducats: number;
+        Required: number;
+    }>;
+    relicDrops: Array<{
+        RelicID: number;
+        PartName: string;
+        Rarity: string;
+        Ducats: number;
+        Price: number;
+        Chances: string | null;
+    }>;
+    relicVaultedById: Array<{ RelicID: number; Vaulted: number }>;
+}
+
+export async function runRelrunSync(payload: RelrunSyncPayload): Promise<void> {
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+        const { primeSets, primeParts, relicDrops, relicVaultedById } = payload;
+
+        if (primeSets.length > 0) {
+            await conn.execute(
+                `INSERT INTO ${TABLES.PRIMESETS} (PrimeSet, Price, Ducats, PartsTotalPrice, PrimeAccess, Category, Vaulted)
+                 VALUES ${primeSets.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(', ')}
+                 ON DUPLICATE KEY UPDATE Price = VALUES(Price), Ducats = VALUES(Ducats), PartsTotalPrice = VALUES(PartsTotalPrice), Category = VALUES(Category), Vaulted = VALUES(Vaulted)`,
+                primeSets.flatMap((r) => [r.PrimeSet, r.Price, r.Ducats, r.PartsTotalPrice, '', r.Category, r.Vaulted])
+            );
+        }
+
+        if (primeParts.length > 0) {
+            await conn.execute(
+                `INSERT INTO ${TABLES.PRIMEPARTS} (PrimeSet, Part, Price, Ducats, Required)
+                 VALUES ${primeParts.map(() => '(?, ?, ?, ?, ?)').join(', ')}
+                 ON DUPLICATE KEY UPDATE Price = VALUES(Price), Ducats = VALUES(Ducats), Required = VALUES(Required)`,
+                primeParts.flatMap((r) => [r.PrimeSet, r.Part, r.Price, r.Ducats, r.Required])
+            );
+        }
+
+        for (const { RelicID, Vaulted } of relicVaultedById) {
+            await conn.execute(
+                `UPDATE ${TABLES.RELICS} SET Vaulted = ? WHERE ID = ?`,
+                [Vaulted, RelicID]
+            );
+        }
+
+        await conn.execute(`DELETE FROM ${TABLES.RELICDROPDATA}`);
+        if (relicDrops.length > 0) {
+            const batchSize = 500;
+            for (let i = 0; i < relicDrops.length; i += batchSize) {
+                const batch = relicDrops.slice(i, i + batchSize);
+                await conn.execute(
+                    `INSERT INTO ${TABLES.RELICDROPDATA} (RelicID, PartName, Rarity, Ducats, Price, Chances)
+                     VALUES ${batch.map(() => '(?, ?, ?, ?, ?, ?)').join(', ')}`,
+                    batch.flatMap((r) => [r.RelicID, r.PartName, r.Rarity, r.Ducats, r.Price, r.Chances])
+                );
+            }
+        }
+
+        await conn.commit();
+    } catch (e) {
+        await conn.rollback();
+        throw e;
+    } finally {
+        conn.release();
+    }
 }
 
 export async function getAllRefinements() {
