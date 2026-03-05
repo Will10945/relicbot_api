@@ -218,6 +218,27 @@
     },
     {
       "method": "GET",
+      "pathParams": [
+        "id"
+      ],
+      "queryParams": [
+        {
+          "name": "sort",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        }
+      ],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "",
+      "sourceFile": "src/routes/members.ts",
+      "path": "/api/members/:id/reputation-per-day"
+    },
+    {
+      "method": "GET",
       "pathParams": [],
       "queryParams": [],
       "bodyParams": [],
@@ -228,13 +249,38 @@
     },
     {
       "method": "GET",
+      "pathParams": [
+        "setName",
+        "partName"
+      ],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "part (see handler for shape)",
+      "description": "",
+      "sourceFile": "src/routes/primeParts.ts",
+      "path": "/api/primeparts/:setName/:partName"
+    },
+    {
+      "method": "GET",
       "pathParams": [],
       "queryParams": [],
       "bodyParams": [],
-      "responseShape": "{ results }",
+      "responseShape": "(see handler)",
       "description": "",
       "sourceFile": "src/routes/primeSets.ts",
       "path": "/api/primesets"
+    },
+    {
+      "method": "GET",
+      "pathParams": [
+        "setName"
+      ],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "",
+      "sourceFile": "src/routes/primeSets.ts",
+      "path": "/api/primesets/:setName"
     },
     {
       "method": "GET",
@@ -249,9 +295,18 @@
     {
       "method": "GET",
       "pathParams": [],
-      "queryParams": [],
+      "queryParams": [
+        {
+          "name": "ids",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        }
+      ],
       "bodyParams": [],
-      "responseShape": "{ results }",
+      "responseShape": "(see handler)",
       "description": "",
       "sourceFile": "src/routes/relics.ts",
       "path": "/api/relics"
@@ -263,7 +318,7 @@
       ],
       "queryParams": [],
       "bodyParams": [],
-      "responseShape": "relic (see handler for shape)",
+      "responseShape": "{ error }",
       "description": "",
       "sourceFile": "src/routes/relics.ts",
       "path": "/api/relics/:id"
@@ -280,10 +335,6 @@
         },
         {
           "name": "all",
-          "type": "string"
-        },
-        {
-          "name": "relic",
           "type": "string"
         },
         {
@@ -304,10 +355,80 @@
         }
       ],
       "bodyParams": [],
-      "responseShape": "data (see handler for shape)",
+      "responseShape": "{ error }",
       "description": "",
       "sourceFile": "src/routes/relics.ts",
       "path": "/api/relics/:id/profile"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [
+        {
+          "name": "sort",
+          "type": "string"
+        },
+        {
+          "name": "all",
+          "type": "string"
+        },
+        {
+          "name": "from",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "to",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "filled",
+          "type": "string"
+        }
+      ],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "",
+      "sourceFile": "src/routes/relics.ts",
+      "path": "/api/relics/profiles"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [
+        {
+          "name": "sort",
+          "type": "string"
+        },
+        {
+          "name": "all",
+          "type": "string"
+        },
+        {
+          "name": "from",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "to",
+          "type": "string (date or timestamp)"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "filled",
+          "type": "string"
+        }
+      ],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "",
+      "sourceFile": "src/routes/relics.ts",
+      "path": "/api/relics/profiles"
     },
     {
       "method": "GET",
