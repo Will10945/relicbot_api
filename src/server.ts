@@ -20,6 +20,8 @@ import hosts from './routes/hosts';
 import primeSets from './routes/primeSets';
 import primeParts from './routes/primeParts';
 import refinements from './routes/refinements';
+import subscriptions from './routes/subscriptions';
+import blacklist from './routes/blacklist';
 import home from './routes/home';
 import auth from './routes/auth';
 import { ServerSocket } from './socket';
@@ -62,6 +64,8 @@ app.use('/api/hosts', hosts);
 app.use('/api/primesets', primeSets);
 app.use('/api/primeparts', primeParts);
 app.use('/api/refinements', refinements);
+app.use('/api/subscriptions', subscriptions);
+app.use('/api/blacklist', blacklist);
 
 app.use('/auth', auth);
 app.use('/', home);

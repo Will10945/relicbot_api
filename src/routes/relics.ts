@@ -3,6 +3,7 @@ import {
     getAllRelics,
     getRelic,
     getRelicProfileData,
+    getRelicProfileDataBatch,
     getRelicDrops,
     getRelicDropsByRelicIds,
     getProfileOrderBy,
@@ -12,6 +13,8 @@ import {
 } from '../database/database';
 
 const router = express.Router();
+
+const BULK_IDS_MAX = 100;
 
 const relicDebugger = require('debug')('app:relicsEndpoint');
 
@@ -48,12 +51,15 @@ router.get('/profiles', async (req, res) => {
     try {
         const ids = parseRelicIdsFromRequest(req);
         if (!ids) return res.status(400).json({ error: 'Invalid or missing ids; use query ?ids=1,2,3' });
+        if (ids.length > BULK_IDS_MAX) return res.status(400).json({ error: `Too many ids; maximum ${BULK_IDS_MAX}` });
         const sortBy = getProfileOrderBy((req.query.sort as string) ?? '');
         const filledOnly = parseFilledOnlyParam(req.query.all);
         const { from, to } = normalizeFromTo(req.query as Record<string, unknown>);
         const dateRange = parseDateRange(from, to);
         const [profilesData, dropsMap] = await Promise.all([
-            Promise.all(ids.map((id) => getRelicProfileData(id, sortBy, filledOnly, dateRange))),
+            dateRange
+                ? Promise.all(ids.map((id) => getRelicProfileData(id, sortBy, filledOnly, dateRange)))
+                : getRelicProfileDataBatch(ids, sortBy, filledOnly, null),
             getRelicDropsByRelicIds(ids)
         ]);
         const results = profilesData
@@ -69,12 +75,15 @@ router.post('/profiles', async (req, res) => {
     try {
         const ids = parseRelicIdsFromRequest(req);
         if (!ids) return res.status(400).json({ error: 'Invalid or missing ids; send JSON body { "ids": [1, 2, 3] }' });
+        if (ids.length > BULK_IDS_MAX) return res.status(400).json({ error: `Too many ids; maximum ${BULK_IDS_MAX}` });
         const sortBy = getProfileOrderBy((req.query.sort as string) ?? req.body?.sort ?? '');
         const filledOnly = parseFilledOnlyParam(req.query.all ?? req.body?.all);
         const { from, to } = normalizeFromTo({ ...req.query, ...req.body } as Record<string, unknown>);
         const dateRange = parseDateRange(from, to);
         const [profilesData, dropsMap] = await Promise.all([
-            Promise.all(ids.map((id) => getRelicProfileData(id, sortBy, filledOnly, dateRange))),
+            dateRange
+                ? Promise.all(ids.map((id) => getRelicProfileData(id, sortBy, filledOnly, dateRange)))
+                : getRelicProfileDataBatch(ids, sortBy, filledOnly, null),
             getRelicDropsByRelicIds(ids)
         ]);
         const results = profilesData

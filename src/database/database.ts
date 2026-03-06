@@ -2208,6 +2208,157 @@ export async function getMemberProfileData(
     };
 }
 
+/** Batch member profiles (no date range). Returns one entry per requested id in same order; missing members get member: null. */
+export async function getMemberProfileDataBatch(
+    memberIds: number[],
+    sortBy: ProfileSortField = 'filledSquads',
+    filledOnly: boolean = true,
+    _dateRange: { fromSec: number; toSec: number } | null = null
+): Promise<MemberProfileData[]> {
+    if (memberIds.length === 0) return [];
+    const orderCol = PROFILE_SORT_COLUMNS[sortBy];
+    const filledFilter = filledOnly ? ' AND mf.FilledSquads > 0' : '';
+    const missingFriendFilledFilter = filledOnly ? ' AND mf.FilledSquads > 0' : '';
+    const rfFilledFilter = filledOnly ? ' AND rf.FilledSquads > 0' : '';
+    const ph = memberIds.map(() => '?').join(',');
+    const ph2 = [...memberIds, ...memberIds];
+    const [memberRows, repRows, vrbRows, missingRepRows, friendRows, missingFriendRows, relicRowsOn, relicRowsOff] = await Promise.all([
+        SelectQuery<IMemberRow>(`SELECT MemberID, MemberName FROM ${TABLES.MEMBERS} WHERE MemberID IN (${ph})`, memberIds),
+        SelectQuery<mysql.RowDataPacket>(
+            `SELECT MemberID, Day, Week, Month, ThreeMonth, SixMonth, Year, AllTime, TotalSquads, FilledSquads, LastUpdate FROM ${TABLES.MEMBERREPUTATION} WHERE MemberID IN (${ph})`,
+            memberIds
+        ),
+        SelectQuery<mysql.RowDataPacket>(`SELECT id, reputation FROM ${TABLES.VRB_REPUTATION} WHERE id IN (${ph})`, memberIds),
+        SelectQuery<mysql.RowDataPacket>(`SELECT id, reputation FROM ${TABLES.MISSING_REPUTATION} WHERE id IN (${ph})`, memberIds),
+        SelectQuery<mysql.RowDataPacket>(
+            `SELECT mf.MemberID1, mf.MemberID2, mf.SquadsTogether, mf.FilledSquads, m1.MemberName AS Name1, m2.MemberName AS Name2
+             FROM ${TABLES.MEMBERFRIENDS} mf
+             JOIN ${TABLES.MEMBERS} m1 ON m1.MemberID = mf.MemberID1
+             JOIN ${TABLES.MEMBERS} m2 ON m2.MemberID = mf.MemberID2
+             WHERE (mf.MemberID1 IN (${ph}) OR mf.MemberID2 IN (${ph}))${filledFilter}
+             ORDER BY mf.${orderCol} DESC`,
+            ph2
+        ),
+        SelectQuery<mysql.RowDataPacket>(
+            `SELECT mf.MemberID1, mf.MemberID2, mf.SquadsTogether, mf.FilledSquads, m1.MemberName AS Name1, m2.MemberName AS Name2
+             FROM ${TABLES.MISSING_FRIENDS} mf
+             JOIN ${TABLES.MEMBERS} m1 ON m1.MemberID = mf.MemberID1
+             JOIN ${TABLES.MEMBERS} m2 ON m2.MemberID = mf.MemberID2
+             WHERE (mf.MemberID1 IN (${ph}) OR mf.MemberID2 IN (${ph}))${missingFriendFilledFilter}`,
+            ph2
+        ),
+        SelectQuery<mysql.RowDataPacket>(
+            `SELECT rf.MemberID, rf.RelicID, rf.SquadsTogether, rf.FilledSquads, r.Era, r.Name
+             FROM ${TABLES.RELICFRIENDS} rf
+             JOIN ${TABLES.RELICS} r ON r.ID = rf.RelicID
+             WHERE rf.MemberID IN (${ph}) AND rf.Offcycle = 0${rfFilledFilter}
+             ORDER BY rf.${orderCol} DESC`,
+            memberIds
+        ),
+        SelectQuery<mysql.RowDataPacket>(
+            `SELECT rf.MemberID, rf.RelicID, rf.SquadsTogether, rf.FilledSquads, r.Era, r.Name
+             FROM ${TABLES.RELICFRIENDS} rf
+             JOIN ${TABLES.RELICS} r ON r.ID = rf.RelicID
+             WHERE rf.MemberID IN (${ph}) AND rf.Offcycle = 1${rfFilledFilter}
+             ORDER BY rf.${orderCol} DESC`,
+            memberIds
+        )
+    ]);
+    const memberById = new Map(memberRows.map((r) => [r.MemberID!, r]));
+    const repById = new Map((repRows as mysql.RowDataPacket[]).map((r) => [r.MemberID, r]));
+    const vrbById = new Map((vrbRows as mysql.RowDataPacket[]).map((r) => [r.id, Number(r.reputation)]));
+    const missingById = new Map((missingRepRows as mysql.RowDataPacket[]).map((r) => [r.id, Number(r.reputation)]));
+    const friendRowsByMemberId = new Map<number, mysql.RowDataPacket[]>();
+    for (const r of friendRows as mysql.RowDataPacket[]) {
+        const id1 = r.MemberID1;
+        const id2 = r.MemberID2;
+        if (memberIds.includes(id1)) { if (!friendRowsByMemberId.has(id1)) friendRowsByMemberId.set(id1, []); friendRowsByMemberId.get(id1)!.push(r); }
+        if (memberIds.includes(id2)) { if (!friendRowsByMemberId.has(id2)) friendRowsByMemberId.set(id2, []); friendRowsByMemberId.get(id2)!.push(r); }
+    }
+    const missingFriendRowsByMemberId = new Map<number, mysql.RowDataPacket[]>();
+    for (const r of missingFriendRows as mysql.RowDataPacket[]) {
+        const id1 = r.MemberID1;
+        const id2 = r.MemberID2;
+        if (memberIds.includes(id1)) { if (!missingFriendRowsByMemberId.has(id1)) missingFriendRowsByMemberId.set(id1, []); missingFriendRowsByMemberId.get(id1)!.push(r); }
+        if (memberIds.includes(id2)) { if (!missingFriendRowsByMemberId.has(id2)) missingFriendRowsByMemberId.set(id2, []); missingFriendRowsByMemberId.get(id2)!.push(r); }
+    }
+    const relicOnByMemberId = new Map<number, mysql.RowDataPacket[]>();
+    for (const r of relicRowsOn as mysql.RowDataPacket[]) {
+        const id = r.MemberID;
+        if (!relicOnByMemberId.has(id)) relicOnByMemberId.set(id, []);
+        relicOnByMemberId.get(id)!.push(r);
+    }
+    const relicOffByMemberId = new Map<number, mysql.RowDataPacket[]>();
+    for (const r of relicRowsOff as mysql.RowDataPacket[]) {
+        const id = r.MemberID;
+        if (!relicOffByMemberId.has(id)) relicOffByMemberId.set(id, []);
+        relicOffByMemberId.get(id)!.push(r);
+    }
+    const addFriend = (memberId: number, friendMap: Map<string, { otherId: number; name: string | null; squadsTogether: number; filledSquads: number }>, r: { MemberID1: number; MemberID2: number; SquadsTogether: number; FilledSquads?: number; Name1?: string; Name2?: string }) => {
+        const otherId = r.MemberID1 === memberId ? r.MemberID2 : r.MemberID1;
+        const name = r.MemberID1 === memberId ? r.Name2 : r.Name1;
+        const key = `${Math.min(r.MemberID1, r.MemberID2)},${Math.max(r.MemberID1, r.MemberID2)}`;
+        const existing = friendMap.get(key);
+        const st = Number(r.SquadsTogether ?? 0);
+        const fs = Number(r.FilledSquads ?? 0);
+        if (existing) {
+            existing.squadsTogether += st;
+            existing.filledSquads += fs;
+        } else {
+            friendMap.set(key, { otherId, name: name ?? null, squadsTogether: st, filledSquads: fs });
+        }
+    };
+    return memberIds.map((memberId) => {
+        const member = memberById.get(memberId);
+        if (!member) {
+            return {
+                member: null,
+                reputation: null,
+                topFriends: [],
+                mostUsedRelicsOncycle: [],
+                mostUsedRelicsOffcycle: []
+            } as MemberProfileData;
+        }
+        const rep = repById.get(memberId);
+        const vrbValue = vrbById.get(memberId) ?? 0;
+        const missingValue = missingById.get(memberId) ?? 0;
+        const legacyTotal = vrbValue + missingValue;
+        const reputation = rep
+            ? ({
+                Day: Number(rep.Day),
+                Week: Number(rep.Week),
+                Month: Number(rep.Month),
+                ThreeMonth: Number(rep.ThreeMonth),
+                SixMonth: Number(rep.SixMonth),
+                Year: Number(rep.Year),
+                AllTime: Number(rep.AllTime) + legacyTotal,
+                TotalSquads: Number(rep.TotalSquads) + legacyTotal,
+                FilledSquads: Number(rep.FilledSquads) + legacyTotal,
+                FilledSquadsCountedForRep: Number(rep.AllTime) + legacyTotal,
+                LastUpdate: Number(rep.LastUpdate),
+                vrbReputation: vrbValue,
+                missingReputation: missingValue
+            } as Record<string, number>)
+            : (legacyTotal > 0
+                ? ({ AllTime: legacyTotal, TotalSquads: legacyTotal, FilledSquads: legacyTotal, FilledSquadsCountedForRep: legacyTotal, vrbReputation: vrbValue, missingReputation: missingValue } as Record<string, number>)
+                : null);
+        const friendMap = new Map<string, { otherId: number; name: string | null; squadsTogether: number; filledSquads: number }>();
+        (friendRowsByMemberId.get(memberId) ?? []).forEach((r) => addFriend(memberId, friendMap, r as { MemberID1: number; MemberID2: number; SquadsTogether: number; FilledSquads?: number; Name1?: string; Name2?: string }));
+        (missingFriendRowsByMemberId.get(memberId) ?? []).forEach((r) => addFriend(memberId, friendMap, r as { MemberID1: number; MemberID2: number; SquadsTogether: number; FilledSquads?: number; Name1?: string; Name2?: string }));
+        const topFriends = [...friendMap.values()].map((v) => ({ id: v.otherId, name: v.name, squadsTogether: v.squadsTogether, filledSquads: v.filledSquads }))
+            .sort((a, b) => (orderCol === 'FilledSquads' ? b.filledSquads - a.filledSquads : b.squadsTogether - a.squadsTogether));
+        const relicOn = relicOnByMemberId.get(memberId) ?? [];
+        const relicOff = relicOffByMemberId.get(memberId) ?? [];
+        return {
+            member: { id: member.MemberID!, name: member.MemberName ?? null },
+            reputation,
+            topFriends,
+            mostUsedRelicsOncycle: relicOn.map((r) => ({ id: r.RelicID, name: r.Name, era: r.Era, squadsTogether: r.SquadsTogether, filledSquads: r.FilledSquads ?? 0 })),
+            mostUsedRelicsOffcycle: relicOff.map((r) => ({ id: r.RelicID, name: r.Name, era: r.Era, squadsTogether: r.SquadsTogether, filledSquads: r.FilledSquads ?? 0 }))
+        };
+    });
+}
+
 /** Normalize squads.ClosedAt to Unix seconds in SQL (DB may store sec or ms). Use in WHERE for date range. */
 function closedAtSecExpr(alias: string): string {
     return `IF(${alias}.ClosedAt >= 10000000000, FLOOR(${alias}.ClosedAt/1000), ${alias}.ClosedAt)`;
@@ -2535,6 +2686,157 @@ export async function getRelicProfileData(
         mostCommonHostsOncycle,
         mostCommonHostsOffcycle
     };
+}
+
+/** Batch relic profiles (no date range). Returns one entry per requested id in same order; missing relics get relic: null. */
+export async function getRelicProfileDataBatch(
+    relicIds: number[],
+    sortBy: ProfileSortField = 'filledSquads',
+    filledOnly: boolean = true,
+    _dateRange: { fromSec: number; toSec: number } | null = null
+): Promise<RelicProfileData[]> {
+    if (relicIds.length === 0) return [];
+    const orderCol = PROFILE_SORT_COLUMNS[sortBy];
+    const pairFilledFilter = filledOnly ? ' AND rpf.FilledSquads > 0' : '';
+    const rfFilledFilter = filledOnly ? ' AND rf.FilledSquads > 0' : '';
+    const hostFilledJoin = filledOnly ? ` JOIN ${TABLES.SQUADS} s ON s.SquadID = sr.SquadID AND s.Filled = 1` : '';
+    const ph = relicIds.map(() => '?').join(',');
+    const ph2 = [...relicIds, ...relicIds];
+    const [relicRows, repRows, pairRows, memberRowsOn, memberRowsOff, hostRowsOn, hostRowsOff] = await Promise.all([
+        SelectQuery<IRelicRow>(`SELECT ID, Era, Name FROM ${TABLES.RELICS} WHERE ID IN (${ph})`, relicIds),
+        SelectQuery<mysql.RowDataPacket>(
+            `SELECT RelicID, Day, Week, Month, ThreeMonth, SixMonth, Year, AllTime, TotalSquads, LastUpdate FROM ${TABLES.RELICREPUTATION} WHERE RelicID IN (${ph})`,
+            relicIds
+        ),
+        SelectQuery<mysql.RowDataPacket>(
+            `SELECT rpf.RelicID1, rpf.RelicID2, rpf.Offcycle1, rpf.Offcycle2, rpf.SquadsTogether, rpf.FilledSquads, r1.Era AS Era1, r1.Name AS Name1, r2.Era AS Era2, r2.Name AS Name2
+             FROM ${TABLES.RELICPAIRFRIENDS} rpf
+             JOIN ${TABLES.RELICS} r1 ON r1.ID = rpf.RelicID1
+             JOIN ${TABLES.RELICS} r2 ON r2.ID = rpf.RelicID2
+             WHERE (rpf.RelicID1 IN (${ph}) OR rpf.RelicID2 IN (${ph}))${pairFilledFilter}
+             ORDER BY rpf.${orderCol} DESC`,
+            ph2
+        ),
+        SelectQuery<mysql.RowDataPacket>(
+            `SELECT rf.RelicID, rf.MemberID, rf.SquadsTogether, rf.FilledSquads, m.MemberName
+             FROM ${TABLES.RELICFRIENDS} rf
+             JOIN ${TABLES.MEMBERS} m ON m.MemberID = rf.MemberID
+             WHERE rf.RelicID IN (${ph}) AND rf.Offcycle = 0${rfFilledFilter}
+             ORDER BY rf.${orderCol} DESC`,
+            relicIds
+        ),
+        SelectQuery<mysql.RowDataPacket>(
+            `SELECT rf.RelicID, rf.MemberID, rf.SquadsTogether, rf.FilledSquads, m.MemberName
+             FROM ${TABLES.RELICFRIENDS} rf
+             JOIN ${TABLES.MEMBERS} m ON m.MemberID = rf.MemberID
+             WHERE rf.RelicID IN (${ph}) AND rf.Offcycle = 1${rfFilledFilter}
+             ORDER BY rf.${orderCol} DESC`,
+            relicIds
+        ),
+        SelectQuery<mysql.RowDataPacket>(
+            `SELECT sr.RelicID, sh.HostID, h.Display, COUNT(*) AS squadsCount
+             FROM ${TABLES.SQUADRELICS} sr${hostFilledJoin}
+             JOIN squadhost sh ON sh.SquadID = sr.SquadID
+             JOIN ${TABLES.HOSTS} h ON h.HostID = sh.HostID
+             WHERE sr.RelicID IN (${ph}) AND sr.Offcycle = 0
+             GROUP BY sr.RelicID, sh.HostID, h.Display
+             HAVING COUNT(*) > 0
+             ORDER BY COUNT(*) DESC`,
+            relicIds
+        ),
+        SelectQuery<mysql.RowDataPacket>(
+            `SELECT sr.RelicID, sh.HostID, h.Display, COUNT(*) AS squadsCount
+             FROM ${TABLES.SQUADRELICS} sr${hostFilledJoin}
+             JOIN squadhost sh ON sh.SquadID = sr.SquadID
+             JOIN ${TABLES.HOSTS} h ON h.HostID = sh.HostID
+             WHERE sr.RelicID IN (${ph}) AND sr.Offcycle = 1
+             GROUP BY sr.RelicID, sh.HostID, h.Display
+             HAVING COUNT(*) > 0
+             ORDER BY COUNT(*) DESC`,
+            relicIds
+        )
+    ]);
+    const relicById = new Map(relicRows.map((r) => [r.ID, r]));
+    const repById = new Map((repRows as mysql.RowDataPacket[]).map((r) => [r.RelicID, r]));
+    const pairByRelicId = new Map<number, mysql.RowDataPacket[]>();
+    for (const r of pairRows as mysql.RowDataPacket[]) {
+        const id1 = r.RelicID1;
+        const id2 = r.RelicID2;
+        if (relicIds.includes(id1)) { if (!pairByRelicId.has(id1)) pairByRelicId.set(id1, []); pairByRelicId.get(id1)!.push(r); }
+        if (id2 !== id1 && relicIds.includes(id2)) { if (!pairByRelicId.has(id2)) pairByRelicId.set(id2, []); pairByRelicId.get(id2)!.push(r); }
+    }
+    const memberOnByRelicId = new Map<number, mysql.RowDataPacket[]>();
+    for (const r of memberRowsOn as mysql.RowDataPacket[]) {
+        const id = r.RelicID;
+        if (!memberOnByRelicId.has(id)) memberOnByRelicId.set(id, []);
+        memberOnByRelicId.get(id)!.push(r);
+    }
+    const memberOffByRelicId = new Map<number, mysql.RowDataPacket[]>();
+    for (const r of memberRowsOff as mysql.RowDataPacket[]) {
+        const id = r.RelicID;
+        if (!memberOffByRelicId.has(id)) memberOffByRelicId.set(id, []);
+        memberOffByRelicId.get(id)!.push(r);
+    }
+    const hostOnByRelicId = new Map<number, mysql.RowDataPacket[]>();
+    for (const r of hostRowsOn as mysql.RowDataPacket[]) {
+        const id = r.RelicID;
+        if (!hostOnByRelicId.has(id)) hostOnByRelicId.set(id, []);
+        hostOnByRelicId.get(id)!.push(r);
+    }
+    const hostOffByRelicId = new Map<number, mysql.RowDataPacket[]>();
+    for (const r of hostRowsOff as mysql.RowDataPacket[]) {
+        const id = r.RelicID;
+        if (!hostOffByRelicId.has(id)) hostOffByRelicId.set(id, []);
+        hostOffByRelicId.get(id)!.push(r);
+    }
+    const allDisplays = (hostRowsOn as mysql.RowDataPacket[]).map((r) => r.Display ?? '').concat((hostRowsOff as mysql.RowDataPacket[]).map((r) => r.Display ?? ''));
+    const uniqueDisplays = [...new Set(allDisplays.filter(Boolean))];
+    const displayToReadable = new Map<string, string>();
+    await Promise.all(uniqueDisplays.map(async (d) => { const readable = await expandHostDisplay(d); displayToReadable.set(d, readable); }));
+    const emptyProfile = (): RelicProfileData => ({
+        relic: null,
+        reputation: null,
+        mostCommonPairsBothOn: [],
+        mostCommonPairsOnOff: [],
+        mostCommonPairsOffOn: [],
+        mostCommonPairsBothOff: [],
+        topMembersOncycle: [],
+        topMembersOffcycle: [],
+        mostCommonHostsOncycle: [],
+        mostCommonHostsOffcycle: []
+    });
+    return relicIds.map((relicId) => {
+        const relic = relicById.get(relicId);
+        if (!relic) return emptyProfile();
+        const rep = repById.get(relicId);
+        const pairRowsForId = pairByRelicId.get(relicId) ?? [];
+        const mapPair = (r: mysql.RowDataPacket) => {
+            const isFirst = r.RelicID1 === relicId;
+            return {
+                relicId: isFirst ? r.RelicID2 : r.RelicID1,
+                relicName: isFirst ? r.Name2 : r.Name1,
+                relicEra: isFirst ? r.Era2 : r.Era1,
+                squadsTogether: r.SquadsTogether,
+                filledSquads: r.FilledSquads ?? 0
+            };
+        };
+        const memberOn = memberOnByRelicId.get(relicId) ?? [];
+        const memberOff = memberOffByRelicId.get(relicId) ?? [];
+        const hostOn = hostOnByRelicId.get(relicId) ?? [];
+        const hostOff = hostOffByRelicId.get(relicId) ?? [];
+        return {
+            relic: { id: relic.ID, name: relic.Name, era: relic.Era },
+            reputation: rep ? { ...rep } as Record<string, number> : null,
+            mostCommonPairsBothOn: pairRowsForId.filter((r) => r.Offcycle1 === 0 && r.Offcycle2 === 0).map(mapPair),
+            mostCommonPairsOnOff: pairRowsForId.filter((r) => r.Offcycle1 === 0 && r.Offcycle2 === 1).map(mapPair),
+            mostCommonPairsOffOn: pairRowsForId.filter((r) => r.Offcycle1 === 1 && r.Offcycle2 === 0).map(mapPair),
+            mostCommonPairsBothOff: pairRowsForId.filter((r) => r.Offcycle1 === 1 && r.Offcycle2 === 1).map(mapPair),
+            topMembersOncycle: memberOn.map((r) => ({ id: r.MemberID, name: r.MemberName ?? null, squadsTogether: r.SquadsTogether, filledSquads: r.FilledSquads ?? 0 })),
+            topMembersOffcycle: memberOff.map((r) => ({ id: r.MemberID, name: r.MemberName ?? null, squadsTogether: r.SquadsTogether, filledSquads: r.FilledSquads ?? 0 })),
+            mostCommonHostsOncycle: hostOn.map((r) => ({ hostId: r.HostID, display: displayToReadable.get(r.Display ?? '') ?? r.Display ?? '', squadsCount: Number(r.squadsCount) })),
+            mostCommonHostsOffcycle: hostOff.map((r) => ({ hostId: r.HostID, display: displayToReadable.get(r.Display ?? '') ?? r.Display ?? '', squadsCount: Number(r.squadsCount) }))
+        };
+    });
 }
 
 /** Relic profile aggregated from squads where ClosedAt is in range. */
@@ -2980,4 +3282,228 @@ async function getAllHostsProfileDataInRange(
         return val(rep(b)) - val(rep(a));
     });
     return results;
+}
+
+// --- Subscriptions (relic, member, host) ---
+
+/** Get or create a host by signature string; returns HostID. Uses SHA-256 hash. */
+export async function getOrCreateHostIdBySignature(
+    signature: string,
+    createdAt: number = Math.floor(Date.now() / 1000)
+): Promise<number> {
+    const hash = crypto.createHash('sha256').update(signature, 'utf8').digest();
+    const rows = await SelectQuery<{ HostID: number }>(
+        `SELECT HostID FROM ${TABLES.HOSTS} WHERE SignatureHash = ?`,
+        [hash] as unknown as (number | string | null)[]
+    );
+    if (rows.length > 0) return rows[0].HostID;
+    const style = (signature.match(/^\w+\|([^|]*)/)?.[1] ?? null) || null;
+    const result = await ModifyQuery(
+        `INSERT INTO ${TABLES.HOSTS} (SignatureHash, Display, Style, CreatedAt) VALUES (?, ?, ?, ?)`,
+        [hash, signature.slice(0, 1024), style, createdAt] as unknown as (number | string | null)[]
+    );
+    return result.insertId ?? 0;
+}
+
+export async function getRelicSubscriptionsByMemberIds(memberIds: number[]): Promise<Map<number, number[]>> {
+    if (memberIds.length === 0) return new Map();
+    const ph = memberIds.map(() => '?').join(',');
+    const rows = await SelectQuery<{ MemberID: number; RelicID: number }>(
+        `SELECT MemberID, RelicID FROM ${TABLES.MEMBERRELICSUBSCRIPTIONS} WHERE MemberID IN (${ph})`,
+        memberIds
+    );
+    const map = new Map<number, number[]>();
+    for (const r of rows) {
+        if (!map.has(r.MemberID)) map.set(r.MemberID, []);
+        map.get(r.MemberID)!.push(r.RelicID);
+    }
+    memberIds.forEach((id) => { if (!map.has(id)) map.set(id, []); });
+    return map;
+}
+
+export async function getMemberSubscriptionsByMemberIds(memberIds: number[]): Promise<Map<number, number[]>> {
+    if (memberIds.length === 0) return new Map();
+    const ph = memberIds.map(() => '?').join(',');
+    const rows = await SelectQuery<{ MemberId: number; SubMemberID: number }>(
+        `SELECT MemberId, SubMemberID FROM ${TABLES.MEMBERUSERSUBSCRIPTIONS} WHERE MemberId IN (${ph})`,
+        memberIds
+    );
+    const map = new Map<number, number[]>();
+    for (const r of rows) {
+        const id = r.MemberId;
+        if (!map.has(id)) map.set(id, []);
+        map.get(id)!.push(r.SubMemberID);
+    }
+    memberIds.forEach((id) => { if (!map.has(id)) map.set(id, []); });
+    return map;
+}
+
+export async function getHostSubscriptionsByMemberIds(memberIds: number[]): Promise<Map<number, number[]>> {
+    if (memberIds.length === 0) return new Map();
+    const ph = memberIds.map(() => '?').join(',');
+    const rows = await SelectQuery<{ MemberID: number; HostID: number }>(
+        `SELECT MemberID, HostID FROM ${TABLES.MEMBERHOSTSUBSCRIPTIONS} WHERE MemberID IN (${ph})`,
+        memberIds
+    );
+    const map = new Map<number, number[]>();
+    for (const r of rows) {
+        if (!map.has(r.MemberID)) map.set(r.MemberID, []);
+        map.get(r.MemberID)!.push(Number(r.HostID));
+    }
+    memberIds.forEach((id) => { if (!map.has(id)) map.set(id, []); });
+    return map;
+}
+
+export interface SubscriptionsBundleItem {
+    memberId: number;
+    relics: number[];
+    members: number[];
+    hosts: number[];
+}
+
+export async function getSubscriptionsBundle(memberIds: number[]): Promise<SubscriptionsBundleItem[]> {
+    const [relicMap, memberMap, hostMap] = await Promise.all([
+        getRelicSubscriptionsByMemberIds(memberIds),
+        getMemberSubscriptionsByMemberIds(memberIds),
+        getHostSubscriptionsByMemberIds(memberIds)
+    ]);
+    return memberIds.map((memberId) => ({
+        memberId,
+        relics: relicMap.get(memberId) ?? [],
+        members: memberMap.get(memberId) ?? [],
+        hosts: hostMap.get(memberId) ?? []
+    }));
+}
+
+export async function addRelicSubscriptions(entries: { memberId: number; relicIds: number[] }[]): Promise<void> {
+    const flat: [number, number][] = [];
+    entries.forEach(({ memberId, relicIds }) => relicIds.forEach((relicId) => flat.push([memberId, relicId])));
+    if (flat.length === 0) return;
+    const values = flat.map(() => '(?,?)').join(',');
+    const params = flat.flat();
+    await ModifyQuery(
+        `INSERT IGNORE INTO ${TABLES.MEMBERRELICSUBSCRIPTIONS} (MemberID, RelicID) VALUES ${values}`,
+        params
+    );
+}
+
+export async function removeRelicSubscriptions(entries: { memberId: number; relicIds: number[] }[]): Promise<void> {
+    for (const { memberId, relicIds } of entries) {
+        if (relicIds.length === 0) continue;
+        const ph = relicIds.map(() => '?').join(',');
+        await ModifyQuery(
+            `DELETE FROM ${TABLES.MEMBERRELICSUBSCRIPTIONS} WHERE MemberID = ? AND RelicID IN (${ph})`,
+            [memberId, ...relicIds]
+        );
+    }
+}
+
+export async function addMemberSubscriptions(entries: { memberId: number; memberIds: number[] }[]): Promise<void> {
+    const flat: [number, number][] = [];
+    entries.forEach(({ memberId, memberIds }) => memberIds.forEach((subId) => flat.push([memberId, subId])));
+    if (flat.length === 0) return;
+    const values = flat.map(() => '(?,?)').join(',');
+    const params = flat.flat();
+    await ModifyQuery(
+        `INSERT IGNORE INTO ${TABLES.MEMBERUSERSUBSCRIPTIONS} (MemberId, SubMemberID) VALUES ${values}`,
+        params
+    );
+}
+
+export async function removeMemberSubscriptions(entries: { memberId: number; memberIds: number[] }[]): Promise<void> {
+    for (const { memberId, memberIds } of entries) {
+        if (memberIds.length === 0) continue;
+        const ph = memberIds.map(() => '?').join(',');
+        await ModifyQuery(
+            `DELETE FROM ${TABLES.MEMBERUSERSUBSCRIPTIONS} WHERE MemberId = ? AND SubMemberID IN (${ph})`,
+            [memberId, ...memberIds]
+        );
+    }
+}
+
+export async function addHostSubscriptions(entries: { memberId: number; hostSignatures: string[] }[]): Promise<void> {
+    const flat: { memberId: number; hostId: number }[] = [];
+    for (const { memberId, hostSignatures } of entries) {
+        for (const sig of hostSignatures) {
+            const hostId = await getOrCreateHostIdBySignature(sig);
+            flat.push({ memberId, hostId });
+        }
+    }
+    if (flat.length === 0) return;
+    const values = flat.map(() => '(?,?)').join(',');
+    const params = flat.flatMap(({ memberId, hostId }) => [memberId, hostId]);
+    await ModifyQuery(
+        `INSERT IGNORE INTO ${TABLES.MEMBERHOSTSUBSCRIPTIONS} (MemberID, HostID) VALUES ${values}`,
+        params
+    );
+}
+
+export async function removeHostSubscriptions(entries: { memberId: number; hostIds: number[] }[]): Promise<void> {
+    for (const { memberId, hostIds } of entries) {
+        if (hostIds.length === 0) continue;
+        const ph = hostIds.map(() => '?').join(',');
+        await ModifyQuery(
+            `DELETE FROM ${TABLES.MEMBERHOSTSUBSCRIPTIONS} WHERE MemberID = ? AND HostID IN (${ph})`,
+            [memberId, ...hostIds]
+        );
+    }
+}
+
+// --- Blacklist ---
+
+export async function getGlobalBlacklistMemberIds(): Promise<number[]> {
+    const rows = await SelectQuery<{ BlacklistID: number }>(`SELECT BlacklistID FROM ${TABLES.GLOBALBLACKLIST}`, []);
+    return rows.map((r) => r.BlacklistID);
+}
+
+export async function getMemberBlacklistsByMemberIds(memberIds: number[]): Promise<Map<number, number[]>> {
+    if (memberIds.length === 0) return new Map();
+    const ph = memberIds.map(() => '?').join(',');
+    const rows = await SelectQuery<{ MemberID: number; BlacklistID: number }>(
+        `SELECT MemberID, BlacklistID FROM ${TABLES.MEMBERBLACKLIST} WHERE MemberID IN (${ph})`,
+        memberIds
+    );
+    const map = new Map<number, number[]>();
+    for (const r of rows) {
+        if (!map.has(r.MemberID)) map.set(r.MemberID, []);
+        map.get(r.MemberID)!.push(r.BlacklistID);
+    }
+    memberIds.forEach((id) => { if (!map.has(id)) map.set(id, []); });
+    return map;
+}
+
+export async function addGlobalBlacklist(memberIds: number[]): Promise<void> {
+    if (memberIds.length === 0) return;
+    const values = memberIds.map(() => '(?)').join(',');
+    await ModifyQuery(`INSERT IGNORE INTO ${TABLES.GLOBALBLACKLIST} (BlacklistID) VALUES ${values}`, memberIds);
+}
+
+export async function removeGlobalBlacklist(memberIds: number[]): Promise<void> {
+    if (memberIds.length === 0) return;
+    const ph = memberIds.map(() => '?').join(',');
+    await ModifyQuery(`DELETE FROM ${TABLES.GLOBALBLACKLIST} WHERE BlacklistID IN (${ph})`, memberIds);
+}
+
+export async function addMemberBlacklistEntries(entries: { memberId: number; blacklistedMemberIds: number[] }[]): Promise<void> {
+    const flat: [number, number][] = [];
+    entries.forEach(({ memberId, blacklistedMemberIds }) =>
+        blacklistedMemberIds.forEach((bid) => flat.push([memberId, bid]))
+    );
+    if (flat.length === 0) return;
+    const values = flat.map(() => '(?,?)').join(',');
+    await ModifyQuery(
+        `INSERT IGNORE INTO ${TABLES.MEMBERBLACKLIST} (MemberID, BlacklistID) VALUES ${values}`,
+        flat.flat()
+    );
+}
+
+export async function removeMemberBlacklistEntries(entries: { memberId: number; blacklistedMemberIds: number[] }[]): Promise<void> {
+    for (const { memberId, blacklistedMemberIds } of entries) {
+        if (blacklistedMemberIds.length === 0) continue;
+        const ph = blacklistedMemberIds.map(() => '?').join(',');
+        await ModifyQuery(
+            `DELETE FROM ${TABLES.MEMBERBLACKLIST} WHERE MemberID = ? AND BlacklistID IN (${ph})`,
+            [memberId, ...blacklistedMemberIds]
+        );
+    }
 }
