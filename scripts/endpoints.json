@@ -13,6 +13,46 @@
     {
       "method": "GET",
       "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "GET /api/blacklist?ids=1,2,3 — per-member blacklists for given member IDs.",
+      "sourceFile": "src/routes/blacklist.ts",
+      "path": "/api/blacklist"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "POST /api/blacklist — bulk read (body { ids }) or bulk edit (body { entries: [ { memberId, add?, remove? } ] }).",
+      "sourceFile": "src/routes/blacklist.ts",
+      "path": "/api/blacklist"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "(see handler)",
+      "description": "GET /api/blacklist/global — list of globally blacklisted member IDs.",
+      "sourceFile": "src/routes/blacklist.ts",
+      "path": "/api/blacklist/global"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "(see handler)",
+      "description": "POST /api/blacklist/global — bulk add/remove. Body: { add?: number[], remove?: number[] }.",
+      "sourceFile": "src/routes/blacklist.ts",
+      "path": "/api/blacklist/global"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
       "queryParams": [
         {
           "name": "sort",
@@ -669,6 +709,36 @@
       "description": "Leave squads. Body: { memberId, squadIds?: string[] }.  If squadIds is omitted or empty, the member is removed from every active squad they are in (active squads created in the last 24 hours only).  Removing a guest: when leaving one squad only and the member has guests (AnonymousUsers > 0), we remove one guest.  Bulk: when leaving multiple squads, the member (and all their guests) are removed from each squad.",
       "sourceFile": "src/routes/squads.ts",
       "path": "/api/squads/leave"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "GET /api/subscriptions?ids=1,2,3 — bulk read subscriptions (relics, members, hosts) for given member IDs.",
+      "sourceFile": "src/routes/subscriptions.ts",
+      "path": "/api/subscriptions"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "POST /api/subscriptions with body { \"ids\": [1,2,3] } — same as GET, for bulk read.",
+      "sourceFile": "src/routes/subscriptions.ts",
+      "path": "/api/subscriptions"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "POST /api/subscriptions/edit — bulk add/remove. Body: { entries: [ { memberId, relics?: { add?, remove? }, members?: { add?, remove? }, hosts?: { add?: string[], remove?: number[] } } ] }. Returns updated state for affected member IDs.",
+      "sourceFile": "src/routes/subscriptions.ts",
+      "path": "/api/subscriptions/edit"
     },
     {
       "method": "POST",
