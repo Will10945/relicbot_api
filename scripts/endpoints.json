@@ -422,6 +422,10 @@
         {
           "name": "status",
           "type": "string"
+        },
+        {
+          "name": "era",
+          "type": "string"
         }
       ],
       "bodyParams": [],
@@ -478,6 +482,26 @@
       "description": "",
       "sourceFile": "src/routes/relics.ts",
       "path": "/api/relics/:id/profile"
+    },
+    {
+      "method": "GET",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "GET /api/relics/light?ids=1,2,3 — lightweight bulk: id, name, era, parts (partName, rarity, price, ducats).",
+      "sourceFile": "src/routes/relics.ts",
+      "path": "/api/relics/light"
+    },
+    {
+      "method": "POST",
+      "pathParams": [],
+      "queryParams": [],
+      "bodyParams": [],
+      "responseShape": "{ error }",
+      "description": "POST /api/relics/light — same as GET, body { \"ids\": [1, 2, 3] }.",
+      "sourceFile": "src/routes/relics.ts",
+      "path": "/api/relics/light"
     },
     {
       "method": "GET",
