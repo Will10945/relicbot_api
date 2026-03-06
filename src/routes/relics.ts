@@ -6,6 +6,7 @@ import {
     getRelicProfileDataBatch,
     getRelicDrops,
     getRelicDropsByRelicIds,
+    getRelicsByIds,
     getProfileOrderBy,
     parseFilledOnlyParam,
     parseDateRange,
@@ -15,6 +16,7 @@ import {
 const router = express.Router();
 
 const RELIC_PROFILES_IDS_MAX = 1000;
+const RELIC_LIGHT_IDS_MAX = 1000;
 
 const relicDebugger = require('debug')('app:relicsEndpoint');
 
@@ -46,6 +48,50 @@ function parseRelicIdsFromRequest(req: express.Request): number[] | null {
     }
     return ids.length === 0 ? null : [...new Set(ids)];
 }
+
+/** GET /api/relics/light?ids=1,2,3 — lightweight bulk: id, name, era, parts (partName, rarity, price, ducats). */
+router.get('/light', async (req, res) => {
+    try {
+        const ids = parseRelicIdsFromRequest(req);
+        if (!ids) return res.status(400).json({ error: 'Invalid or missing ids; use query ?ids=1,2,3' });
+        if (ids.length > RELIC_LIGHT_IDS_MAX) return res.status(400).json({ error: `Too many ids; maximum ${RELIC_LIGHT_IDS_MAX}` });
+        const [relics, dropsMap] = await Promise.all([
+            getRelicsByIds(ids),
+            getRelicDropsByRelicIds(ids)
+        ]);
+        const results = relics.map((r) => ({
+            id: r.id,
+            name: r.name,
+            era: r.era,
+            parts: (dropsMap.get(r.id) ?? []).map((d) => ({ partName: d.partName, rarity: d.rarity, price: d.price, ducats: d.ducats }))
+        }));
+        res.json({ results });
+    } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/** POST /api/relics/light — same as GET, body { "ids": [1, 2, 3] }. */
+router.post('/light', async (req, res) => {
+    try {
+        const ids = parseRelicIdsFromRequest(req);
+        if (!ids) return res.status(400).json({ error: 'Invalid or missing ids; send JSON body { "ids": [1, 2, 3] }' });
+        if (ids.length > RELIC_LIGHT_IDS_MAX) return res.status(400).json({ error: `Too many ids; maximum ${RELIC_LIGHT_IDS_MAX}` });
+        const [relics, dropsMap] = await Promise.all([
+            getRelicsByIds(ids),
+            getRelicDropsByRelicIds(ids)
+        ]);
+        const results = relics.map((r) => ({
+            id: r.id,
+            name: r.name,
+            era: r.era,
+            parts: (dropsMap.get(r.id) ?? []).map((d) => ({ partName: d.partName, rarity: d.rarity, price: d.price, ducats: d.ducats }))
+        }));
+        res.json({ results });
+    } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 router.get('/profiles', async (req, res) => {
     try {

@@ -502,6 +502,18 @@ export async function getRelic(id: number) {
     )
 }
 
+/** Relic id, name, era for bulk; returns only existing relics in request order. */
+export async function getRelicsByIds(relicIds: number[]): Promise<{ id: number; name: string; era: string }[]> {
+    if (relicIds.length === 0) return [];
+    const ph = relicIds.map(() => '?').join(',');
+    const rows = await SelectQuery<IRelicRow>(`SELECT ID, Era, Name FROM ${TABLES.RELICS} WHERE ID IN (${ph})`, relicIds);
+    const byId = new Map<number, { id: number; name: string; era: string }>();
+    for (const r of rows) {
+        byId.set(r.ID, { id: r.ID, name: r.Name ?? '', era: r.Era ?? '' });
+    }
+    return relicIds.map((id) => byId.get(id)).filter((r): r is { id: number; name: string; era: string } => r != null);
+}
+
 export async function getAllPrimeSets() {
     return await SelectQuery<IPrimeSetRow>(
         `SELECT * FROM ${TABLES.PRIMESETS}`
