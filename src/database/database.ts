@@ -319,6 +319,34 @@ export async function getSquadsByIds(
     return { squads, squadUsers, squadRelics, squadRefinements, squadPosts };
 }
 
+/** Squad IDs that contain all of the given relic IDs. Optionally restrict to active (last 24h). Order: newest first. */
+export async function getSquadIdsByRelicIds(
+    relicIds: number[],
+    opts?: { status?: 'active' | 'all' }
+): Promise<string[]> {
+    if (relicIds.length === 0) return [];
+    const status = opts?.status ?? 'all';
+    const ph = relicIds.map(() => '?').join(',');
+    const params: (number | string)[] = [...relicIds];
+    let where = '';
+    if (status === 'active') {
+        const cutoffSec = Math.floor(Date.now() / 1000) - ACTIVE_SQUADS_CREATED_SINCE_SEC;
+        where = ` AND s.Active = 1 AND s.CreatedAt >= ?`;
+        params.push(cutoffSec);
+    }
+    params.push(relicIds.length);
+    const rows = await SelectQuery<{ SquadID: string }>(
+        `SELECT s.SquadID FROM ${TABLES.SQUADS} s
+         INNER JOIN ${TABLES.SQUADRELICS} sr ON sr.SquadID = s.SquadID AND sr.RelicID IN (${ph})
+         WHERE 1=1${where}
+         GROUP BY s.SquadID
+         HAVING COUNT(DISTINCT sr.RelicID) = ?
+         ORDER BY MAX(s.CreatedAt) DESC`,
+        params
+    );
+    return rows.map((r) => r.SquadID);
+}
+
 /** Count closed squads per day (by ClosedAt date). Returns total, filled, and unfilled per day. Day is derived from ClosedAt (server timezone). Includes every day in the range (zeros for days with no squads). */
 export interface SquadCountPerDay {
     date: string;

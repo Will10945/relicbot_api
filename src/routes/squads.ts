@@ -6,6 +6,7 @@ import {
     getSquadsPaginated,
     getSquadById,
     getSquadsByIds,
+    getSquadIdsByRelicIds,
     getActiveSquadIdsByMemberId,
     getLeaveContextBatch,
     executeLeaveBulk,
@@ -247,17 +248,33 @@ router.get('/', async (req, res) => {
             return res.json({ results: squadsFormatted });
         }
 
-        const fetchFn = status === 'active' ? getActiveSquads : getAllSquads;
-        const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await fetchFn();
-        const squadsFormatted: Squad[] = await mergeSquadQueryResults(
-            squads,
-            squadUsers,
-            squadRelics,
-            squadRefinements,
-            squadPosts
-        );
-
-        let filtered = squadsFormatted;
+        let filtered: Squad[];
+        if (parsedRelicIds?.length) {
+            const candidateSquadIds = await getSquadIdsByRelicIds(parsedRelicIds, {
+                status: status === 'active' ? 'active' : 'all'
+            });
+            if (candidateSquadIds.length === 0) {
+                return res.json({ results: [] });
+            }
+            const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getSquadsByIds(candidateSquadIds, { skipPosts: true });
+            filtered = await mergeSquadQueryResults(
+                squads,
+                squadUsers,
+                squadRelics,
+                squadRefinements,
+                squadPosts
+            );
+        } else {
+            const fetchFn = status === 'active' ? getActiveSquads : getAllSquads;
+            const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await fetchFn();
+            filtered = await mergeSquadQueryResults(
+                squads,
+                squadUsers,
+                squadRelics,
+                squadRefinements,
+                squadPosts
+            );
+        }
 
         if (parsedMemberIds?.length) {
             filtered = filtered.filter((s) =>
