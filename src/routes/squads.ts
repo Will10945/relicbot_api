@@ -192,7 +192,8 @@ router.get('/', async (req, res) => {
             filled,
             offcycle,
             start,
-            end
+            end,
+            limit: limitParam
         } = req.query as {
             status?: string;
             memberIds?: string;
@@ -206,6 +207,7 @@ router.get('/', async (req, res) => {
             offcycle?: string;
             start?: string;
             end?: string;
+            limit?: string;
         };
 
         const parsedMemberIds = parseNumberArrayParam(memberIds);
@@ -216,7 +218,7 @@ router.get('/', async (req, res) => {
         const parsedFilled = filled === '1' || filled === '0' ? parseInt(filled, 10) : undefined;
         const hasOffcycleRelics = offcycle === '1' || offcycle === 'true' || offcycle === 'yes';
         const offset = start != null && start !== '' ? parseInt(String(start), 10) : 0;
-        const limit = end != null && end !== '' ? parseInt(String(end), 10) : undefined;
+        const limit = limitParam != null && limitParam !== '' ? parseInt(String(limitParam), 10) : (end != null && end !== '' ? parseInt(String(end), 10) : undefined);
 
         const validOffset = Number.isNaN(offset) || offset < 0 ? 0 : offset;
         const validLimit = limit !== undefined && !Number.isNaN(limit) && limit > 0 ? limit : undefined;
@@ -226,11 +228,11 @@ router.get('/', async (req, res) => {
             !!parsedRefinementIds?.length;
 
         if (!hasComplexFilters) {
-            const pageLimit = validLimit ?? 100;
+            const queryLimit = validLimit != null ? validOffset + validLimit : 10000;
             const { squads, squadUsers, squadRelics, squadRefinements, squadPosts } = await getSquadsPaginated({
                 status: status === 'active' ? 'active' : 'all',
-                limit: pageLimit,
-                offset: validOffset,
+                limit: queryLimit,
+                offset: 0,
                 era: era as string | undefined,
                 style: style as string | undefined,
                 hostMemberId: parsedHostMemberId,
@@ -245,7 +247,10 @@ router.get('/', async (req, res) => {
                 squadRefinements,
                 squadPosts
             );
-            return res.json({ results: squadsFormatted });
+            const results = validLimit != null
+                ? squadsFormatted.slice(validOffset, validOffset + validLimit)
+                : squadsFormatted.slice(validOffset);
+            return res.json({ results });
         }
 
         let filtered: Squad[];
